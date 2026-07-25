@@ -274,20 +274,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ============ SKYBOX SYSTEM ============
-function setSkybox(name)
-    if currentSkybox then
-        pcall(function()
-            local lighting = game:GetService("Lighting")
-            if lighting:FindFirstChild(currentSkybox) then
-                lighting[currentSkybox]:Destroy()
-            end
-        end)
-        currentSkybox = nil
-    end
-    
-    if name == "None" then return end
-
 -- ============ SKYBOXES ============
 local skyboxes = {
     ["Gray Skybox"] = {
@@ -323,66 +309,80 @@ local skyboxes = {
         SkyboxUp = "rbxassetid://15114948718",
     },
     ["Lince Skybox"] = {
-    SkyboxBk = "rbxassetid://102112718813044",
-    SkyboxDn = "rbxassetid://102112718813044",
-    SkyboxFt = "rbxassetid://102112718813044",
-    SkyboxLf = "rbxassetid://102112718813044",
-    SkyboxRt = "rbxassetid://102112718813044",
-    SkyboxUp = "rbxassetid://102112718813044",
+        SkyboxBk = "rbxassetid://102112718813044",
+        SkyboxDn = "rbxassetid://102112718813044",
+        SkyboxFt = "rbxassetid://102112718813044",
+        SkyboxLf = "rbxassetid://102112718813044",
+        SkyboxRt = "rbxassetid://102112718813044",
+        SkyboxUp = "rbxassetid://102112718813044",
     },
-        ["Red Skybox"] = {
-    SkyboxBk = "rbxassetid://401664839",
-    SkyboxDn = "rbxassetid://401664862",
-    SkyboxFt = "rbxassetid://401664960",
-    SkyboxLf = "rbxassetid://401664881",
-    SkyboxRt = "rbxassetid://401664901",
-    SkyboxUp = "rbxassetid://401664936",
+    ["Red Skybox"] = {
+        SkyboxBk = "rbxassetid://401664839",
+        SkyboxDn = "rbxassetid://401664862",
+        SkyboxFt = "rbxassetid://401664960",
+        SkyboxLf = "rbxassetid://401664881",
+        SkyboxRt = "rbxassetid://401664901",
+        SkyboxUp = "rbxassetid://401664936",
     },
-        ["Slam Skybox"] = {
-    SkyboxBk = "rbxassetid://111576755001670",
-    SkyboxDn = "rbxassetid://111576755001670",
-    SkyboxFt = "rbxassetid://111576755001670",
-    SkyboxLf = "rbxassetid://111576755001670",
-    SkyboxRt = "rbxassetid://111576755001670",
-    SkyboxUp = "rbxassetid://111576755001670",
+    ["Slam Skybox"] = {
+        SkyboxBk = "rbxassetid://111576755001670",
+        SkyboxDn = "rbxassetid://111576755001670",
+        SkyboxFt = "rbxassetid://111576755001670",
+        SkyboxLf = "rbxassetid://111576755001670",
+        SkyboxRt = "rbxassetid://111576755001670",
+        SkyboxUp = "rbxassetid://111576755001670",
     },
-        ["Green Eyeball Skybox"] = {
-    SkyboxBk = "rbxassetid://113857258921684",
-    SkyboxDn = "rbxassetid://131099902234134",
-    SkyboxFt = "rbxassetid://98342317659302",
-    SkyboxLf = "rbxassetid://130914716725043",
-    SkyboxRt = "rbxassetid://93970360759256",
-    SkyboxUp = "rbxassetid://135000456639127",
-},
-        ["LUK Skybox"] = {
-    SkyboxBk = "rbxassetid://70633402089123",
-    SkyboxDn = "rbxassetid://70633402089123",
-    SkyboxFt = "rbxassetid://70633402089123",
-    SkyboxLf = "rbxassetid://70633402089123",
-    SkyboxRt = "rbxassetid://70633402089123",
-    SkyboxUp = "rbxassetid://70633402089123",
-},
-        ["LUK Members Skybox"] = {
-    SkyboxBk = "rbxassetid://81865783003948",
-    SkyboxDn = "rbxassetid://81865783003948",
-    SkyboxFt = "rbxassetid://81865783003948",
-    SkyboxLf = "rbxassetid://81865783003948",
-    SkyboxRt = "rbxassetid://81865783003948",
-    SkyboxUp = "rbxassetid://81865783003948",
-},
+    ["Green Eyeball Skybox"] = {
+        SkyboxBk = "rbxassetid://113857258921684",
+        SkyboxDn = "rbxassetid://131099902234134",
+        SkyboxFt = "rbxassetid://98342317659302",
+        SkyboxLf = "rbxassetid://130914716725043",
+        SkyboxRt = "rbxassetid://93970360759256",
+        SkyboxUp = "rbxassetid://135000456639127",
+    },
+    ["LUK Skybox"] = {
+        SkyboxBk = "rbxassetid://70633402089123",
+        SkyboxDn = "rbxassetid://70633402089123",
+        SkyboxFt = "rbxassetid://70633402089123",
+        SkyboxLf = "rbxassetid://70633402089123",
+        SkyboxRt = "rbxassetid://70633402089123",
+        SkyboxUp = "rbxassetid://70633402089123",
+    },
+    ["LUK Members Skybox"] = {
+        SkyboxBk = "rbxassetid://81865783003948",
+        SkyboxDn = "rbxassetid://81865783003948",
+        SkyboxFt = "rbxassetid://81865783003948",
+        SkyboxLf = "rbxassetid://81865783003948",
+        SkyboxRt = "rbxassetid://81865783003948",
+        SkyboxUp = "rbxassetid://81865783003948",
+    },
 }
-	
-	local data = skyboxes[name]
-	if not data then return end
-	
-	local lighting = game:GetService("Lighting")
-	local sky = Instance.new("Sky", lighting)
-	sky.Name = name
-	for prop, value in pairs(data) do
-		sky[prop] = value
-	end
-	
-	currentSkybox = name
+
+-- ============ SKYBOX SYSTEM ============
+function setSkybox(name)
+    if currentSkybox then
+        pcall(function()
+            local lighting = game:GetService("Lighting")
+            if lighting:FindFirstChild(currentSkybox) then
+                lighting[currentSkybox]:Destroy()
+            end
+        end)
+        currentSkybox = nil
+    end
+    
+    if name == "None" then return end
+    
+    local data = skyboxes[name]
+    if not data then return end
+    
+    local lighting = game:GetService("Lighting")
+    local sky = Instance.new("Sky", lighting)
+    sky.Name = name
+    for prop, value in pairs(data) do
+        sky[prop] = value
+    end
+    
+    currentSkybox = name
 end
 
 function updateTagVisibility()
