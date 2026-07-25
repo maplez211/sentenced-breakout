@@ -190,7 +190,7 @@ local function getClosestTargetPC()
     end
     return best
 end
-       
+
 local function updateFOVPosition()
     if not fovCircle then return end
     if isMobile then
@@ -203,6 +203,46 @@ local function updateFOVPosition()
     end
 end
 
+-- ============ SILENT AIM HOOK ============
+local oldFireServer = nil
+
+local function setupSilentAim()
+    local char = player.Character
+    if not char then return end
+    
+    local tool = char:FindFirstChildOfClass("Tool")
+    if not tool then return end
+    
+    local rifleEvent = tool:FindFirstChild("RifleEvent")
+    if not rifleEvent then return end
+    
+    if oldFireServer then return end
+    
+    oldFireServer = rifleEvent.FireServer
+    
+    rifleEvent.FireServer = function(self, action, aimPoint, rayOrigin, rayDirection, muzzlePos, hitInstance, hitPosition)
+        if action == "Shoot" and AIMBOT_ENABLED and target and target.Character then
+            local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
+            if targetHRP and isVisible(target.Character) then
+                aimPoint = targetHRP.Position
+            end
+        end
+        return oldFireServer(self, action, aimPoint, rayOrigin, rayDirection, muzzlePos, hitInstance, hitPosition)
+    end
+end
+
+player.CharacterAdded:Connect(function(char)
+    task.wait(0.5)
+    setupSilentAim()
+    char.ChildAdded:Connect(function(child)
+        if child:IsA("Tool") and child:FindFirstChild("RifleEvent") then
+            task.wait(0.1)
+            setupSilentAim()
+        end
+    end)
+end)
+
+-- ============ AIMBOT LOOP ============
 RunService.RenderStepped:Connect(function()
     updateFOVPosition()
     
@@ -212,68 +252,42 @@ RunService.RenderStepped:Connect(function()
             MOUSE_LOCKED = false
         end
         PC_TARGET = nil
+        target = nil
         return
     end
     
--- ============ AIMBOT PC ============
-    if not isMobile then
-        if not PC_TARGET or not PC_TARGET.Character then
-            PC_TARGET = getClosestTargetPC()
-        end
+    if isMobile then
+        target = getClosestMobile()
+        -- Não trava a câmera, só seleciona o alvo pro Silent Aim hook
+        return
+    end
+    
+    -- PC
+    if not PC_TARGET or not PC_TARGET.Character then
+        PC_TARGET = getClosestTargetPC()
+    end
+    
+    if PC_TARGET and PC_TARGET.Character then
+        local aimPart = PC_TARGET.Character:FindFirstChild("HumanoidRootPart") or PC_TARGET.Character:FindFirstChild("Torso")
+        local hum = PC_TARGET.Character:FindFirstChildOfClass("Humanoid")
         
-        if PC_TARGET and PC_TARGET.Character then
-            local aimPart = PC_TARGET.Character:FindFirstChild("HumanoidRootPart") or PC_TARGET.Character:FindFirstChild("Torso")
-            local hum = PC_TARGET.Character:FindFirstChildOfClass("Humanoid")
+        if aimPart and hum and hum.Health > 0 and isVisible(PC_TARGET.Character) then
+            local scr = camera:WorldToScreenPoint(aimPart.Position)
+            local mousePos = UserInputService:GetMouseLocation()
+            local smooth = SMOOTHNESS * 8
+            if smooth < 1 then smooth = 1 end
             
-            if aimPart and hum and hum.Health > 0 and isVisible(PC_TARGET.Character) then
-                local scr = camera:WorldToScreenPoint(aimPart.Position)
-                local mousePos = UserInputService:GetMouseLocation()
-                local smooth = SMOOTHNESS * 8
-                if smooth < 1 then smooth = 1 end
-                
-                local deltaX = math.round((scr.X - mousePos.X) / smooth)
-                local deltaY = math.round((scr.Y - 36 - mousePos.Y) / smooth)
-                
-                if type(mousemoverel) == "function" then
-                    mousemoverel(deltaX, deltaY)
-                end
-            else
-                PC_TARGET = nil
+            local deltaX = math.round((scr.X - mousePos.X) / smooth)
+            local deltaY = math.round((scr.Y - 36 - mousePos.Y) / smooth)
+            
+            if type(mousemoverel) == "function" then
+                mousemoverel(deltaX, deltaY)
             end
-        end
-        return
-    end
-    
--- ============ AIMBOT MOBILE ============
-    target = getClosestMobile()
-    if target and target.Character then
-        local head = target.Character:FindFirstChild("Head")
-        local hrp = target.Character:FindFirstChild("HumanoidRootPart")
-        local aimPart = head or hrp
-        if aimPart then
-            local camPos = camera.CFrame.Position
-            local lookAtPos = aimPart.Position
-            
-            local fovScale = camera.FieldOfView / 70
-            local angleOffset = AIM_ANGLE_OFFSET * fovScale
-            
-            local direction = (lookAtPos - camPos).Unit
-            local adjustedCFrame = CFrame.new(camPos, camPos + direction) * CFrame.Angles(math.rad(-angleOffset), 0, 0)
-            camera.CFrame = camera.CFrame:Lerp(adjustedCFrame, SMOOTHNESS)
-            
-            camera.Focus = CFrame.new(camPos + direction * 0.5)
-            
-            if not MOUSE_LOCKED then
-                UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-                MOUSE_LOCKED = true
-            end
-        end
-    else
-        if MOUSE_LOCKED then
-            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-            MOUSE_LOCKED = false
+        else
+            PC_TARGET = nil
         end
     end
+end)
 
 -- ============ SKYBOXES ============
 local skyboxes = {
