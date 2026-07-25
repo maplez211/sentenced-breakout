@@ -247,16 +247,21 @@ RunService.RenderStepped:Connect(function()
 -- ============ AIMBOT MOBILE ============
     target = getClosestMobile()
     if target and target.Character then
+        local head = target.Character:FindFirstChild("Head")
         local hrp = target.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
+        local aimPart = head or hrp
+        if aimPart then
             local camPos = camera.CFrame.Position
-            local lookAtHRP = CFrame.new(camPos, hrp.Position)
+            local lookAtPos = aimPart.Position
             
             local fovScale = camera.FieldOfView / 70
             local angleOffset = AIM_ANGLE_OFFSET * fovScale
             
-            local adjustedCFrame = lookAtHRP * CFrame.Angles(math.rad(-angleOffset), 0, 0)
+            local direction = (lookAtPos - camPos).Unit
+            local adjustedCFrame = CFrame.new(camPos, camPos + direction) * CFrame.Angles(math.rad(-angleOffset), 0, 0)
             camera.CFrame = camera.CFrame:Lerp(adjustedCFrame, SMOOTHNESS)
+            
+            camera.Focus = CFrame.new(camPos + direction * 0.5)
             
             if not MOUSE_LOCKED then
                 UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
@@ -269,7 +274,6 @@ RunService.RenderStepped:Connect(function()
             MOUSE_LOCKED = false
         end
     end
-end)
 
 -- ============ SKYBOXES ============
 local skyboxes = {
