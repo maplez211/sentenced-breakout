@@ -416,7 +416,37 @@ Options = {"None", "Gray Skybox", "2knw & Donk666 Skybox", "Snow Skybox", "Carto
 local TeleportsSection = TeleportsTab:AddSection({"Teleports"})
 
 local teleports = {
-  {"Escape the Prison", Vector3.new(2025, 95, 2763)},
+  {"Nexus", Vector3.new(116, 3, 245)},
+  {"Hall 1", Vector3.new(201, 3, 106)},
+  {"Hall 2", Vector3.new(79, 3, -12)},
+  {"Cells", Vector3.new(-95, 21, 223)},
+  {"Reception", Vector3.new(28, 3, 62)},
+  {"Leaderboards", Vector3.new(90, 3, 55)},
+  {"Cafeteria", Vector3.new(156, 3, 34)},
+  {"Ventilation Duct", Vector3.new(140, 3, 3)},
+  {"Kitchen", Vector3.new(244, 3, -82)},
+  {"Armory", Vector3.new(209, 3, 152)},
+  {"Camera Room", Vector3.new(212, 4, 120)},
+  {"Yard", Vector3.new(74, 3, 351)},
+  {"Yard Gym", Vector3.new(171, 3, 224)},
+  {"Yard Tables", Vector3.new(142, 3, 363)},
+  {"Basketball Court (Yard)", Vector3.new(-52, 3, 362)},
+  {"Roof 1", Vector3.new(-66, 43, 183)},
+  {"Roof 2", Vector3.new(214, 32, 183)},
+  {"Roof 3", Vector3.new(203, 31, -91)},
+  {"Helipad", Vector3.new(122, 55, -76)},
+  {"Garage 1", Vector3.new(97, 3, -112)},
+  {"Garage 2", Vector3.new(96, 31, -113)},
+  {"Parking (Prison)", Vector3.new(24, 3, -36},
+  {"Gate", Vector3.new(-196, 3, -28)},
+  {"Gate Room", Vector3.new(-200, 3, -84)},
+  {"Parking 1 (City)", Vector3.new(-507, -26, 383)},
+  {"Parking 2 (City)", Vector3.new(-1604, -34, 995)},
+  {"Market", Vector3.new(-874, -34, 836)},
+  {"Gas Station", Vector3.new(-1139, -27, 997},
+  {"Escaped Base", Vector3.new(-1575, -30, 796},
+  {"Under the Map", Vector3.new(35, -34, 26)},
+  {"Secret Guard Room", Vector3.new(3, -8, 243)},
 }
 
 for _, tp in ipairs(teleports) do
