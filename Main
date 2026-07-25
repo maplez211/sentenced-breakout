@@ -1,1 +1,667 @@
+-- Main Script Precision | Breakout (Sentenced)
 
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+while not player do task.wait() player = Players.LocalPlayer end
+local playerGui = player:WaitForChild("PlayerGui")
+local camera = workspace.CurrentCamera
+
+FOV_RADIUS = 100
+SMOOTHNESS = 0.80
+SPINBOT_SPEED = 0
+AIM_ANGLE_OFFSET = 10.5
+AIMBOT_ENABLED = true
+HIDE_TAG_ENABLED = false
+WANTED_ONLY = false
+IGNORE_FRIENDS = true
+ESP_ENABLED = false
+ESP_NAMES_ENABLED = true  
+local MOUSE_LOCKED = false
+HIDE_FOV_CIRCLE = false
+IGNORE_INMATES = false
+IGNORE_GUARDS = false
+IGNORE_CRIMINALS = false
+IGNORE_FORCEFIELD = true
+IGNORE_WARDEN = false
+local PC_TARGET = nil
+local target = nil
+TARGET_ON_PLAYER = nil
+
+local isMobile = game:GetService("UserInputService").TouchEnabled
+if not isMobile then AIM_ANGLE_OFFSET = 0 end
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/maplez211/sentenced-breakout/refs/heads/main/UI"))()
+
+-- ============ FOV CIRCLE ============
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FOVGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local fovCircle = Instance.new("Frame", screenGui)
+fovCircle.Size = UDim2.new(0, FOV_RADIUS*2, 0, FOV_RADIUS*2)
+fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+fovCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+fovCircle.BackgroundColor3 = Color3.fromRGB(0,0,0)
+fovCircle.BackgroundTransparency = 1
+fovCircle.BorderSizePixel = 0
+Instance.new("UICorner", fovCircle).CornerRadius = UDim.new(1,0)
+Instance.new("UIStroke", fovCircle).Color = Color3.fromRGB(0, 0, 0)
+fovCircle.UIStroke.Thickness = 1
+fovCircle.Visible = AIMBOT_ENABLED
+_G.fovCircle = fovCircle
+
+_G.toggleFOVCircle = function(hide)
+    local stroke = fovCircle:FindFirstChild("UIStroke")
+    if stroke then
+        stroke.Enabled = not hide
+    end
+end
+
+-- ============ MAIN FUNCTIONS ============
+local function isVisible(targetCharacter)
+	if not targetCharacter then return false end
+	local hrp = targetCharacter:FindFirstChild("HumanoidRootPart")
+	if not hrp then return false end
+	local origin = camera.CFrame.Position
+	local direction = hrp.Position - origin
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Blacklist
+	params.FilterDescendantsInstances = {player.Character, targetCharacter}
+	return Workspace:Raycast(origin, direction, params) == nil
+end
+
+-- ============ AIMBOT SYSTEM ============
+local function getClosestMobile()
+    if TARGET_ON_PLAYER then
+        local targetPlr = Players:FindFirstChild(TARGET_ON_PLAYER)
+        if targetPlr and targetPlr.Character then
+            local humanoid = targetPlr.Character:FindFirstChildOfClass("Humanoid")
+            local hrp = targetPlr.Character:FindFirstChild("HumanoidRootPart")
+            if humanoid and humanoid.Health > 0 and hrp then
+                if IGNORE_FORCEFIELD then
+                    local ff = targetPlr.Character:FindFirstChildOfClass("ForceField")
+                    if ff and ff.Visible then return nil end
+                end
+                if WANTED_ONLY and targetPlr.Team and targetPlr.Team.Name == "Inmates" then
+                    local head = targetPlr.Character:FindFirstChild("Head")
+                    if head then
+                        local bb = head:FindFirstChild("OverheadBBGUI")
+                        local wanted = bb and bb:FindFirstChild("WantedTag")
+                        if not wanted or not wanted.Visible then return nil end
+                    end
+                end
+                local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+                if onScreen and isVisible(targetPlr.Character) then return targetPlr end
+            end
+        end
+        return nil
+    end
+
+    local closest = nil
+    local shortestDistance = math.huge
+    local screenCenter = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
+    local myTeam = player.Team
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character then
+            if IGNORE_FRIENDS and player:IsFriendsWith(plr.UserId) then continue end
+            if myTeam and plr.Team == myTeam then continue end
+            if plr.Team then
+                local tn = plr.Team.Name
+                if IGNORE_INMATES and tn == "Inmates" then continue end
+                if IGNORE_GUARDS and tn == "Guards" then continue end
+                if IGNORE_CRIMINALS and tn == "Criminals" then continue end
+                if IGNORE_WARDEN and tn == "Warden" then continue end
+            end
+            if IGNORE_FORCEFIELD then
+                local ff = plr.Character:FindFirstChildOfClass("ForceField")
+                if ff and ff.Visible then continue end
+            end
+            if WANTED_ONLY and plr.Team and plr.Team.Name == "Inmates" then
+                local head = plr.Character:FindFirstChild("Head")
+                if head then
+                    local bb = head:FindFirstChild("OverheadBBGUI")
+                    local wanted = bb and bb:FindFirstChild("WantedTag")
+                    if not wanted or not wanted.Visible then continue end
+                end
+            end
+            
+            local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
+            local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+            if humanoid and humanoid.Health > 0 and hrp then
+                local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+                if onScreen then
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                    if dist < FOV_RADIUS and dist < shortestDistance then
+                        if isVisible(plr.Character) then
+                            closest = plr
+                            shortestDistance = dist
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function getClosestTargetPC()
+    local mousePos = UserInputService:GetMouseLocation()
+    local best = nil
+    local bestDist = FOV_RADIUS
+    
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr == player or not plr.Character then continue end
+        if IGNORE_FRIENDS and player:IsFriendsWith(plr.UserId) then continue end
+        if IGNORE_FORCEFIELD then
+            local ff = plr.Character:FindFirstChildOfClass("ForceField")
+            if ff and ff.Visible then continue end
+        end
+        if plr.Team then
+            local tn = plr.Team.Name
+            if IGNORE_INMATES and tn == "Inmates" then continue end
+            if IGNORE_GUARDS and tn == "Guards" then continue end
+            if IGNORE_CRIMINALS and tn == "Criminals" then continue end
+            if IGNORE_WARDEN and tn == "Warden" then continue end
+        end
+        if WANTED_ONLY and plr.Team and plr.Team.Name == "Inmates" then
+            local head = plr.Character:FindFirstChild("Head")
+            if head then
+                local bb = head:FindFirstChild("OverheadBBGUI")
+                local wanted = bb and bb:FindFirstChild("WantedTag")
+                if not wanted or not wanted.Visible then continue end
+            end
+        end
+        
+        local aimPart = plr.Character:FindFirstChild("HumanoidRootPart") or plr.Character:FindFirstChild("Torso")
+        local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+        if aimPart and hum and hum.Health > 0 then
+            local pos, onScreen = camera:WorldToViewportPoint(aimPart.Position)
+            if onScreen and isVisible(plr.Character) then
+                local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(mousePos.X, mousePos.Y)).Magnitude
+                if dist < bestDist then
+                    best = plr
+                    bestDist = dist
+                end
+            end
+        end
+    end
+    return best
+end
+
+local function updateFOVPosition()
+    if not fovCircle then return end
+    if isMobile then
+        fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+        fovCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+    else
+        fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+        local mousePos = UserInputService:GetMouseLocation()
+        fovCircle.Position = UDim2.new(0, mousePos.X - FOV_RADIUS, 0, mousePos.Y - FOV_RADIUS - 36)
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    updateFOVPosition()
+    
+    if not AIMBOT_ENABLED then
+        if MOUSE_LOCKED then
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            MOUSE_LOCKED = false
+        end
+        PC_TARGET = nil
+        return
+    end
+    
+-- ============ AIMBOT PC ============
+    if not isMobile then
+        if not PC_TARGET or not PC_TARGET.Character then
+            PC_TARGET = getClosestTargetPC()
+        end
+        
+        if PC_TARGET and PC_TARGET.Character then
+            local aimPart = PC_TARGET.Character:FindFirstChild("HumanoidRootPart") or PC_TARGET.Character:FindFirstChild("Torso")
+            local hum = PC_TARGET.Character:FindFirstChildOfClass("Humanoid")
+            
+            if aimPart and hum and hum.Health > 0 and isVisible(PC_TARGET.Character) then
+                local scr = camera:WorldToScreenPoint(aimPart.Position)
+                local mousePos = UserInputService:GetMouseLocation()
+                local smooth = SMOOTHNESS * 8
+                if smooth < 1 then smooth = 1 end
+                
+                local deltaX = math.round((scr.X - mousePos.X) / smooth)
+                local deltaY = math.round((scr.Y - 36 - mousePos.Y) / smooth)
+                
+                if type(mousemoverel) == "function" then
+                    mousemoverel(deltaX, deltaY)
+                end
+            else
+                PC_TARGET = nil
+            end
+        end
+        return
+    end
+    
+-- ============ AIMBOT MOBILE ============
+    target = getClosestMobile()
+    if target and target.Character then
+        local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local camPos = camera.CFrame.Position
+            local lookAtHRP = CFrame.new(camPos, hrp.Position)
+            
+            local fovScale = camera.FieldOfView / 70
+            local angleOffset = AIM_ANGLE_OFFSET * fovScale
+            
+            local adjustedCFrame = lookAtHRP * CFrame.Angles(math.rad(-angleOffset), 0, 0)
+            camera.CFrame = camera.CFrame:Lerp(adjustedCFrame, SMOOTHNESS)
+            
+            if not MOUSE_LOCKED then
+                UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+                MOUSE_LOCKED = true
+            end
+        end
+    else
+        if MOUSE_LOCKED then
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            MOUSE_LOCKED = false
+        end
+    end
+end)
+
+-- ============ SKYBOX SYSTEM ============
+local currentSkybox = nil
+
+function setSkybox(name)
+	if currentSkybox then
+		pcall(function()
+			local lighting = game:GetService("Lighting")
+			if lighting:FindFirstChild(currentSkybox) then
+				lighting[currentSkybox]:Destroy()
+			end
+		end)
+		currentSkybox = nil
+	end
+	
+	if name == "None" then return end
+
+-- ============ SKYBOXES ============
+local skyboxes = {
+    ["Gray Skybox"] = {
+        SkyboxBk = "rbxassetid://154987705",
+        SkyboxDn = "rbxassetid://154987705",
+        SkyboxFt = "rbxassetid://154987705",
+        SkyboxLf = "rbxassetid://154987705",
+        SkyboxRt = "rbxassetid://154987705",
+        SkyboxUp = "rbxassetid://154987705",
+    },
+    ["2knw & Donk666 Skybox"] = {
+        SkyboxBk = "rbxassetid://121222457209872",
+        SkyboxDn = "rbxassetid://121222457209872",
+        SkyboxFt = "rbxassetid://121222457209872",
+        SkyboxLf = "rbxassetid://121222457209872",
+        SkyboxRt = "rbxassetid://121222457209872",
+        SkyboxUp = "rbxassetid://121222457209872",
+    },
+    ["Snow Skybox"] = {
+        SkyboxBk = "rbxassetid://155657655",
+        SkyboxDn = "rbxassetid://155674246",
+        SkyboxFt = "rbxassetid://155657609",
+        SkyboxLf = "rbxassetid://155657671",
+        SkyboxRt = "rbxassetid://155657619",
+        SkyboxUp = "rbxassetid://155674931",
+    },
+    ["Cartoon Skybox"] = {
+        SkyboxBk = "rbxassetid://15114954171",
+        SkyboxDn = "rbxassetid://15114958869",
+        SkyboxFt = "rbxassetid://15114963740",
+        SkyboxLf = "rbxassetid://15114957947",
+        SkyboxRt = "rbxassetid://15114955238",
+        SkyboxUp = "rbxassetid://15114948718",
+    },
+    ["Lince Skybox"] = {
+    SkyboxBk = "rbxassetid://102112718813044",
+    SkyboxDn = "rbxassetid://102112718813044",
+    SkyboxFt = "rbxassetid://102112718813044",
+    SkyboxLf = "rbxassetid://102112718813044",
+    SkyboxRt = "rbxassetid://102112718813044",
+    SkyboxUp = "rbxassetid://102112718813044",
+    },
+        ["Red Skybox"] = {
+    SkyboxBk = "rbxassetid://401664839",
+    SkyboxDn = "rbxassetid://401664862",
+    SkyboxFt = "rbxassetid://401664960",
+    SkyboxLf = "rbxassetid://401664881",
+    SkyboxRt = "rbxassetid://401664901",
+    SkyboxUp = "rbxassetid://401664936",
+    },
+        ["Slam Skybox"] = {
+    SkyboxBk = "rbxassetid://111576755001670",
+    SkyboxDn = "rbxassetid://111576755001670",
+    SkyboxFt = "rbxassetid://111576755001670",
+    SkyboxLf = "rbxassetid://111576755001670",
+    SkyboxRt = "rbxassetid://111576755001670",
+    SkyboxUp = "rbxassetid://111576755001670",
+    },
+        ["Green Eyeball Skybox"] = {
+    SkyboxBk = "rbxassetid://113857258921684",
+    SkyboxDn = "rbxassetid://131099902234134",
+    SkyboxFt = "rbxassetid://98342317659302",
+    SkyboxLf = "rbxassetid://130914716725043",
+    SkyboxRt = "rbxassetid://93970360759256",
+    SkyboxUp = "rbxassetid://135000456639127",
+},
+        ["LUK Skybox"] = {
+    SkyboxBk = "rbxassetid://70633402089123",
+    SkyboxDn = "rbxassetid://70633402089123",
+    SkyboxFt = "rbxassetid://70633402089123",
+    SkyboxLf = "rbxassetid://70633402089123",
+    SkyboxRt = "rbxassetid://70633402089123",
+    SkyboxUp = "rbxassetid://70633402089123",
+},
+        ["LUK Members Skybox"] = {
+    SkyboxBk = "rbxassetid://81865783003948",
+    SkyboxDn = "rbxassetid://81865783003948",
+    SkyboxFt = "rbxassetid://81865783003948",
+    SkyboxLf = "rbxassetid://81865783003948",
+    SkyboxRt = "rbxassetid://81865783003948",
+    SkyboxUp = "rbxassetid://81865783003948",
+},
+}
+	
+	local data = skyboxes[name]
+	if not data then return end
+	
+	local lighting = game:GetService("Lighting")
+	local sky = Instance.new("Sky", lighting)
+	sky.Name = name
+	for prop, value in pairs(data) do
+		sky[prop] = value
+	end
+	
+	currentSkybox = name
+end
+
+function updateTagVisibility()
+	local char = player.Character
+	if not char then return end
+	local head = char:FindFirstChild("Head")
+	if not head then return end
+	for _, name in ipairs({"Hostile", "KillstreakHeadGui", "OverheadBBGUI"}) do
+		local billboard = head:FindFirstChild(name)
+		if billboard and billboard:IsA("BillboardGui") then
+			billboard.Enabled = not HIDE_TAG_ENABLED
+		end
+	end
+end
+
+-- ============ ESP ============
+local function applyESP(plr)
+	if plr == player then return end
+	local char = plr.Character
+	if not char then return end
+	
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then return end
+	
+	local teamColor = Color3.fromRGB(255, 0, 0)
+	if plr.TeamColor then teamColor = plr.TeamColor.Color
+	elseif plr.Team and plr.Team.TeamColor then teamColor = plr.Team.TeamColor.Color end
+	
+	local highlight = char:FindFirstChild("ESPHighlight")
+	if not highlight then
+		highlight = Instance.new("Highlight", char)
+		highlight.Name = "ESPHighlight"
+	end
+	highlight.FillColor = teamColor
+	highlight.FillTransparency = 0.85
+	highlight.OutlineColor = teamColor
+	highlight.OutlineTransparency = 0
+	
+local head = char:FindFirstChild("Head")
+if head then
+	local billboard = head:FindFirstChild("ESPNameTag")
+	if not ESP_NAMES_ENABLED then
+		if billboard then billboard:Destroy() end
+	elseif not billboard then
+		billboard = Instance.new("BillboardGui", head)
+		billboard.Name = "ESPNameTag"
+		billboard.Size = UDim2.new(0, 200, 0, 30)
+		billboard.StudsOffset = Vector3.new(0, 1.5, 0)
+		billboard.AlwaysOnTop = true
+		local label = Instance.new("TextLabel", billboard)
+		label.BackgroundTransparency = 1
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.Text = plr.DisplayName .. " (@" .. plr.Name .. ")"
+		label.TextColor3 = Color3.fromRGB(255, 255, 255)
+		label.Font = Enum.Font.GothamBold
+		label.TextSize = 12
+		label.TextStrokeTransparency = 0
+		label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	  end
+   end
+end
+
+local function removeESP(plr)
+	if plr.Character then
+		local highlight = plr.Character:FindFirstChild("ESPHighlight")
+		if highlight then highlight:Destroy() end
+		local head = plr.Character:FindFirstChild("Head")
+		if head then
+			local billboard = head:FindFirstChild("ESPNameTag")
+			if billboard then billboard:Destroy() end
+		end
+	end
+end
+
+_G.updateESP = function()
+	if not ESP_ENABLED then
+		for _, plr in ipairs(Players:GetPlayers()) do
+			if plr ~= player then removeESP(plr) end
+		end
+		return
+	end
+	
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player then applyESP(plr) end
+	end
+end
+
+_G.refreshESP = function() _G.updateESP() end
+
+Players.PlayerAdded:Connect(function(plr)
+	plr.CharacterAdded:Connect(function()
+		if ESP_ENABLED then
+			task.wait(0.5)
+			applyESP(plr)
+		end
+	end)
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+	removeESP(plr)
+end)
+
+for _, plr in ipairs(Players:GetPlayers()) do
+	if plr ~= player then
+		plr.CharacterAdded:Connect(function()
+			if ESP_ENABLED then
+				task.wait(0.5)
+				applyESP(plr)
+			end
+		end)
+	end
+end
+
+-- ============ FOG COLOR SYSTEM ============
+function setFogColor(name)
+    local colors = {
+        ["Default"] = Color3.fromRGB(192, 192, 192),
+        ["Black"] = Color3.fromRGB(0, 0, 0),
+        ["Red"] = Color3.fromRGB(255, 50, 50),
+        ["Green"] = Color3.fromRGB(50, 255, 50),
+        ["Blue"] = Color3.fromRGB(50, 50, 255),
+        ["Yellow"] = Color3.fromRGB(255, 255, 50),
+        ["Purple"] = Color3.fromRGB(128, 50, 128),
+        ["Cyan"] = Color3.fromRGB(50, 255, 255),
+        ["Orange"] = Color3.fromRGB(255, 165, 50),
+        ["Pink"] = Color3.fromRGB(255, 105, 180),
+        ["White"] = Color3.fromRGB(255, 255, 255),
+    }
+    
+    local color = colors[name]
+    if not color then return end
+    
+    game:GetService("Lighting").FogColor = color
+end
+
+-- ============ FOV COLOR SYSTEM ============
+local FOV_RAINBOW_ACTIVE = false
+local fovRainbowConnection = nil
+
+function setFOVColor(name)
+    if fovRainbowConnection then
+        fovRainbowConnection:Disconnect()
+        fovRainbowConnection = nil
+    end
+    FOV_RAINBOW_ACTIVE = false
+    
+    if name == "Rainbow" then
+        FOV_RAINBOW_ACTIVE = true
+        local hue = 0
+        fovRainbowConnection = RunService.RenderStepped:Connect(function()
+            hue = (hue + 0.5) % 360
+            local color = Color3.fromHSV(hue / 360, 1, 1)
+            if fovCircle and fovCircle:FindFirstChild("UIStroke") then
+                fovCircle.UIStroke.Color = color
+            end
+        end)
+        return
+    end
+    
+    local colors = {
+        ["Black"] = Color3.fromRGB(0, 0, 0),
+        ["Red"] = Color3.fromRGB(255, 0, 0),
+        ["Green"] = Color3.fromRGB(0, 255, 0),
+        ["Blue"] = Color3.fromRGB(0, 0, 255),
+        ["Yellow"] = Color3.fromRGB(255, 255, 0),
+        ["Purple"] = Color3.fromRGB(128, 0, 128),
+        ["Cyan"] = Color3.fromRGB(0, 255, 255),
+        ["Orange"] = Color3.fromRGB(255, 165, 0),
+        ["Pink"] = Color3.fromRGB(255, 105, 180),
+        ["White"] = Color3.fromRGB(255, 255, 255),
+    }
+    
+    local color = colors[name]
+    if not color then return end
+    
+    if fovCircle and fovCircle:FindFirstChild("UIStroke") then
+        fovCircle.UIStroke.Color = color
+    end
+end
+
+-- ============ PLAYER EVENTS ============
+UserInputService.InputBegan:Connect(function(input, processed)
+  if processed then return end
+  if input.KeyCode == Enum.KeyCode.E or input.KeyCode == Enum.KeyCode.LeftControl then
+    AIMBOT_ENABLED = not AIMBOT_ENABLED
+    if fovCircle then fovCircle.Visible = AIMBOT_ENABLED end
+  end
+end)
+
+player.CharacterAdded:Connect(function()
+  camera.CameraType = Enum.CameraType.Custom
+  UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+  MOUSE_LOCKED = false
+  
+  if ESP_ENABLED then
+    task.wait(0.5)
+    _G.updateESP()
+  end
+end)
+
+-- ============ SPINBOT ============
+RunService.RenderStepped:Connect(function()
+    if SPINBOT_SPEED and SPINBOT_SPEED > 0 then
+        local char = player.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(SPINBOT_SPEED), 0)
+        end
+    end
+end)
+
+task.spawn(function()
+  while task.wait(1) do
+    if HIDE_TAG_ENABLED then
+      updateTagVisibility()
+    end
+  end
+end)
+
+-- ============ DISCORD WEBHOOK ============
+local HttpService = game:GetService("HttpService")
+local http_request = http_request or request or (syn and syn.request) or (http and http.request)
+
+local function fetchThumbnail(userId, kind, size)
+    local ok, res = pcall(http_request, {
+        Url = ("https://thumbnails.roblox.com/v1/users/%s?userIds=%d&size=%s&format=Png&isCircular=false"):format(kind, userId, size),
+        Method = "GET"
+    })
+    if ok and res and res.StatusCode == 200 then
+        local dok, decoded = pcall(HttpService.JSONDecode, HttpService, res.Body)
+        if dok and decoded and decoded.data and decoded.data[1] then
+            return decoded.data[1].imageUrl
+        end
+    end
+    return ("https://www.roblox.com/headshot-thumbnail/image?userId=%d&width=420&height=420&format=png"):format(userId)
+end
+
+local function sendWebhook()
+    local webhookUrl = "https://discord.com/api/webhooks/1526594816329257012/-hy_u311N_uct3DGVzkQ2_IMl1gLCO0aD7OUATPfTdVBA_WXD5-JAlUAtrw_CbNQ4Al_"
+    
+    local userId = player.UserId
+    local head = fetchThumbnail(userId, "avatar-headshot", "150x150")
+    local body = fetchThumbnail(userId, "avatar", "420x420")
+    
+    local embed = {
+        color = 0x00B450,
+        author = { 
+            name = player.DisplayName .. " (@" .. player.Name .. ")", 
+            icon_url = head, 
+            url = "https://www.roblox.com/users/" .. userId .. "/profile" 
+        },
+        title = "Precision Hub | Breakout (Sentenced)",
+        description = "Script executed successfully!",
+        image = { url = body },
+        fields = {
+            { name = "User ID", value = "`" .. userId .. "`", inline = true },
+            { name = "Time", value = "`" .. os.date("%H:%M:%S") .. "`", inline = true },
+        },
+        footer = { text = "Precision Hub" },
+        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+    }
+    
+    pcall(function()
+        http_request({
+            Url = webhookUrl,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode({ embeds = { embed } })
+        })
+    end)
+    
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Precision Hub",
+            Text = "Script executed! Notification sent to Discord server.",
+            Duration = 5,
+        })
+    end)
+end
+
+task.spawn(sendWebhook)
