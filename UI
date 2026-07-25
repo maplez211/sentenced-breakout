@@ -218,9 +218,9 @@ AimbotTab:AddToggle({
 })
 
 AimbotTab:AddToggle({
-  Name = "Ignore Inmates",
+  Name = "Ignore Prisoners",
   Default = false,
-  Callback = function(v) IGNORE_INMATES = v end
+  Callback = function(v) IGNORE_PRISONERS = v end
 })
 
 AimbotTab:AddToggle({
@@ -230,15 +230,9 @@ AimbotTab:AddToggle({
 })
 
 AimbotTab:AddToggle({
-  Name = "Ignore Criminals",
+  Name = "Ignore Escaped",
   Default = false,
-  Callback = function(v) IGNORE_CRIMINALS = v end
-})
-
-AimbotTab:AddToggle({
-  Name = "Ignore Warden",
-  Default = false,
-  Callback = function(v) IGNORE_WARDEN = v end
+  Callback = function(v) IGNORE_ESCAPED = v end
 })
 
 -- ============ TARGET ON SECTION ============
