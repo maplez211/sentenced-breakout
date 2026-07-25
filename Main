@@ -22,11 +22,10 @@ ESP_ENABLED = false
 ESP_NAMES_ENABLED = true  
 local MOUSE_LOCKED = false
 HIDE_FOV_CIRCLE = false
-IGNORE_INMATES = false
+IGNORE_PRISONERS = false
 IGNORE_GUARDS = false
-IGNORE_CRIMINALS = false
+IGNORE_ESCAPED = false
 IGNORE_FORCEFIELD = true
-IGNORE_WARDEN = false
 local PC_TARGET = nil
 local target = nil
 local currentSkybox = nil
@@ -88,7 +87,7 @@ local function getClosestMobile()
                     local ff = targetPlr.Character:FindFirstChildOfClass("ForceField")
                     if ff and ff.Visible then return nil end
                 end
-                if WANTED_ONLY and targetPlr.Team and targetPlr.Team.Name == "Inmates" then
+                if WANTED_ONLY and targetPlr.Team and targetPlr.Team.Name == "Prisoners" then
                     local head = targetPlr.Character:FindFirstChild("Head")
                     if head then
                         local bb = head:FindFirstChild("OverheadBBGUI")
@@ -113,16 +112,15 @@ local function getClosestMobile()
             if myTeam and plr.Team == myTeam then continue end
             if plr.Team then
                 local tn = plr.Team.Name
-                if IGNORE_INMATES and tn == "Inmates" then continue end
+                if IGNORE_PRISONERS and tn == "Prisoners" then continue end
                 if IGNORE_GUARDS and tn == "Guards" then continue end
-                if IGNORE_CRIMINALS and tn == "Criminals" then continue end
-                if IGNORE_WARDEN and tn == "Warden" then continue end
+                if IGNORE_ESCAPED and tn == "Escaped" then continue end
             end
             if IGNORE_FORCEFIELD then
                 local ff = plr.Character:FindFirstChildOfClass("ForceField")
                 if ff and ff.Visible then continue end
             end
-            if WANTED_ONLY and plr.Team and plr.Team.Name == "Inmates" then
+            if WANTED_ONLY and plr.Team and plr.Team.Name == "Prisoners" then
                 local head = plr.Character:FindFirstChild("Head")
                 if head then
                     local bb = head:FindFirstChild("OverheadBBGUI")
@@ -164,12 +162,11 @@ local function getClosestTargetPC()
         end
         if plr.Team then
             local tn = plr.Team.Name
-            if IGNORE_INMATES and tn == "Inmates" then continue end
+            if IGNORE_PRISONERS and tn == "Prisoners" then continue end
             if IGNORE_GUARDS and tn == "Guards" then continue end
-            if IGNORE_CRIMINALS and tn == "Criminals" then continue end
-            if IGNORE_WARDEN and tn == "Warden" then continue end
+            if IGNORE_ESCAPED and tn == "Escaped" then continue end
         end
-        if WANTED_ONLY and plr.Team and plr.Team.Name == "Inmates" then
+        if WANTED_ONLY and plr.Team and plr.Team.Name == "Prisoners" then
             local head = plr.Character:FindFirstChild("Head")
             if head then
                 local bb = head:FindFirstChild("OverheadBBGUI")
@@ -193,7 +190,7 @@ local function getClosestTargetPC()
     end
     return best
 end
-
+       
 local function updateFOVPosition()
     if not fovCircle then return end
     if isMobile then
