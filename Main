@@ -287,19 +287,6 @@ function setSkybox(name)
     end
     
     if name == "None" then return end
-    
-    local data = skyboxes[name]
-    if not data then return end
-    
-    local lighting = game:GetService("Lighting")
-    local sky = Instance.new("Sky", lighting)
-    sky.Name = name
-    for prop, value in pairs(data) do
-        sky[prop] = value
-    end
-    
-    currentSkybox = name
-end  
 
 -- ============ SKYBOXES ============
 local skyboxes = {
