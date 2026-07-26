@@ -1,4 +1,4 @@
--- UI Script Precision | Breakout (Sentenced)
+-- UI Script Precision | Breakout (Sentenced) 
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -20,22 +20,23 @@ local VisualsTab = Window:Tab({ Title = "Visuals", Icon = "eye" })
 local TeleportsTab = Window:Tab({ Title = "Teleports", Icon = "map-pin" })
 
 -- ============ MAIN TAB ============
-MainTab:Divider()
 MainTab:Label({ Title = "Player", Icon = "user" })
 
 MainTab:Slider({
     Title = "Spinbot",
     Desc = "Spins your character at the chosen speed.",
-    Min = 0,
-    Max = 250,
-    Default = 0,
+    Step = 1,  
+    Value = {  
+        Min = 0,
+        Max = 250,
+        Default = 0,
+    },
     Callback = function(Value)
         SPINBOT_SPEED = Value
     end
 })
 
 -- ============ PLAYERS TAB ============
-PlayersTab:Divider()
 PlayersTab:Label({ Title = "Teleport to Player", Icon = "user" })
 
 local playerOptions = {"Select a player..."}
@@ -49,7 +50,7 @@ local playerDropdown = PlayersTab:Dropdown({
     Title = "Teleport to Player",
     Desc = "Select a player to teleport to them",
     Options = playerOptions,
-    Default = "Select a player...",
+    Value = "Select a player...",
     Callback = function(Value)
         if Value == "Select a player..." then return end
         local target = Players:FindFirstChild(Value)
@@ -67,6 +68,7 @@ local playerDropdown = PlayersTab:Dropdown({
 
 PlayersTab:Button({
     Title = "Update Players List",
+    Icon = "refresh-cw",
     Callback = function()
         local options = {"Select a player..."}
         for _, plr in ipairs(Players:GetPlayers()) do
@@ -75,12 +77,11 @@ PlayersTab:Button({
             end
         end
         playerDropdown:SetOptions(options)
-        playerDropdown:SetDefault("Select a player...")
+        playerDropdown:SetValue("Select a player...")
     end
 })
 
--- ============ VIEW PLAYER SECTION ============
-PlayersTab:Divider()
+-- ============ VIEW PLAYER ============
 PlayersTab:Label({ Title = "View Player", Icon = "eye" })
 
 local viewPlayerOptions = {"Select a player..."}
@@ -97,7 +98,7 @@ local viewPlayerDropdown = PlayersTab:Dropdown({
     Title = "View Player",
     Desc = "Select a player to spectate",
     Options = viewPlayerOptions,
-    Default = "Select a player...",
+    Value = "Select a player...",
     Callback = function(Value)
         if Value == "Select a player..." then return end
         SPECTATE_PLAYER = Value
@@ -107,7 +108,7 @@ local viewPlayerDropdown = PlayersTab:Dropdown({
 PlayersTab:Toggle({
     Title = "Spectate Player",
     Desc = "Toggle to spectate the selected player",
-    Default = false,
+    Value = false,
     Callback = function(Value)
         if Value and SPECTATE_PLAYER then
             local target = Players:FindFirstChild(SPECTATE_PLAYER)
@@ -147,17 +148,16 @@ PlayersTab:Button({
             end
         end
         viewPlayerDropdown:SetOptions(options)
-        viewPlayerDropdown:SetDefault("Select a player...")
+        viewPlayerDropdown:SetValue("Select a player...")
     end
 })
 
 -- ============ AIMBOT TAB ============
-AimbotTab:Divider()
 AimbotTab:Label({ Title = "Aimbot", Icon = "crosshair" })
 
 AimbotTab:Toggle({
     Title = "Aimbot",
-    Default = true,
+    Value = true,
     Callback = function(Value)
         AIMBOT_ENABLED = Value
         if _G.fovCircle then _G.fovCircle.Visible = Value end
@@ -167,42 +167,41 @@ AimbotTab:Toggle({
 
 AimbotTab:Toggle({
     Title = "Wanted Only",
-    Default = false,
+    Value = false,
     Callback = function(Value) WANTED_ONLY = Value end
 })
 
 AimbotTab:Toggle({
     Title = "Ignore Forcefield",
-    Default = true,
+    Value = true,
     Callback = function(Value) IGNORE_FORCEFIELD = Value end
 })
 
 AimbotTab:Toggle({
     Title = "Ignore Friends",
-    Default = true,
+    Value = true,
     Callback = function(Value) IGNORE_FRIENDS = Value end
 })
 
 AimbotTab:Toggle({
     Title = "Ignore Prisoners",
-    Default = false,
+    Value = false,
     Callback = function(Value) IGNORE_PRISONERS = Value end
 })
 
 AimbotTab:Toggle({
     Title = "Ignore Guards",
-    Default = false,
+    Value = false,
     Callback = function(Value) IGNORE_GUARDS = Value end
 })
 
 AimbotTab:Toggle({
     Title = "Ignore Escaped",
-    Default = false,
+    Value = false,
     Callback = function(Value) IGNORE_ESCAPED = Value end
 })
 
--- ============ TARGET ON SECTION ============
-AimbotTab:Divider()
+-- ============ TARGET ON ============
 AimbotTab:Label({ Title = "Target On", Icon = "target" })
 
 local targetOptions = {"None"}
@@ -216,7 +215,7 @@ local targetDropdown = AimbotTab:Dropdown({
     Title = "Target On",
     Desc = "Select a player to target",
     Options = targetOptions,
-    Default = "None",
+    Value = "None",
     Callback = function(Value)
         if Value == "None" then
             TARGET_ON_PLAYER = nil
@@ -237,35 +236,43 @@ AimbotTab:Button({
             end
         end
         targetDropdown:SetOptions(newOptions)
-        targetDropdown:SetDefault("None")
+        targetDropdown:SetValue("None")
     end
 })
 
+-- ============ SLIDERS ============
 AimbotTab:Slider({
     Title = "Smooth",
-    Min = 1,
-    Max = 100,
-    Default = 80,
+    Desc = "Adjust aiming smoothness",
+    Step = 1,
+    Value = {
+        Min = 1,
+        Max = 100,
+        Default = 80,
+    },
     Callback = function(Value) SMOOTHNESS = Value / 100 end
 })
 
 AimbotTab:Slider({
     Title = "Angle Offset",
-    Min = 0,
-    Max = 25,
-    Default = 10.5,
+    Desc = "Adjust aim angle offset",
+    Step = 0.5,
+    Value = {
+        Min = 0,
+        Max = 25,
+        Default = 10.5,
+    },
     Callback = function(Value) AIM_ANGLE_OFFSET = Value end
 })
 
--- ============ FOV SECTION ============
-AimbotTab:Divider()
+-- ============ FOV ============
 AimbotTab:Label({ Title = "FOV", Icon = "circle" })
 
 AimbotTab:Dropdown({
     Title = "FOV Color",
     Desc = "Choose the FOV circle color",
     Options = {"Black", "Red", "Green", "Blue", "Yellow", "Purple", "Cyan", "Orange", "Pink", "White", "Rainbow"},
-    Default = "Black",
+    Value = "Black",
     Callback = function(Value)
         setFOVColor(Value)
     end
@@ -273,7 +280,7 @@ AimbotTab:Dropdown({
 
 AimbotTab:Toggle({
     Title = "Hide FOV Circle",
-    Default = false,
+    Value = false,
     Callback = function(Value)
         HIDE_FOV_CIRCLE = Value
         if _G.toggleFOVCircle then
@@ -284,9 +291,13 @@ AimbotTab:Toggle({
 
 AimbotTab:Slider({
     Title = "FOV Size",
-    Min = 30,
-    Max = 500,
-    Default = 100,
+    Desc = "Adjust FOV circle size",
+    Step = 10,
+    Value = {
+        Min = 30,
+        Max = 500,
+        Default = 100,
+    },
     Callback = function(Value)
         FOV_RADIUS = Value
         if _G.fovCircle then _G.fovCircle.Size = UDim2.new(0, Value*2, 0, Value*2) end
@@ -294,12 +305,11 @@ AimbotTab:Slider({
 })
 
 -- ============ VISUALS TAB ============
-VisualsTab:Divider()
 VisualsTab:Label({ Title = "Visual Options", Icon = "eye" })
 
 VisualsTab:Toggle({
     Title = "ESP",
-    Default = false,
+    Value = false,
     Callback = function(Value)
         ESP_ENABLED = Value
         if _G.refreshESP then _G.refreshESP() end
@@ -309,7 +319,7 @@ VisualsTab:Toggle({
 VisualsTab:Toggle({
     Title = "Hide ESP Names",
     Desc = "Hides the names above players when ESP is active",
-    Default = false,
+    Value = false,
     Callback = function(Value)
         ESP_NAMES_ENABLED = not Value
         if _G.refreshESP then _G.refreshESP() end
@@ -318,20 +328,19 @@ VisualsTab:Toggle({
 
 VisualsTab:Toggle({
     Title = "Hide Tag",
-    Default = false,
+    Value = false,
     Callback = function(Value)
         HIDE_TAG_ENABLED = Value
         updateTagVisibility()
     end
 })
 
-VisualsTab:Divider()
 VisualsTab:Label({ Title = "Customization", Icon = "paintbrush" })
 
 VisualsTab:Toggle({
     Title = "Remove Fog",
     Desc = "Removes the fog from the game",
-    Default = false,
+    Value = false,
     Callback = function(Value)
         if Value then
             game:GetService("Lighting").FogEnd = 100000
@@ -347,7 +356,7 @@ VisualsTab:Dropdown({
     Title = "Fog Color",
     Desc = "Choose the fog color",
     Options = {"Default", "Black", "Red", "Green", "Blue", "Yellow", "Purple", "Cyan", "Orange", "Pink", "White"},
-    Default = "Default",
+    Value = "Default",
     Callback = function(Value)
         setFogColor(Value)
     end
@@ -357,14 +366,13 @@ VisualsTab:Dropdown({
     Title = "Skyboxes",
     Desc = "Choose your skybox",
     Options = {"None", "Gray Skybox", "2knw & Donk666 Skybox", "Snow Skybox", "Cartoon Skybox", "Lince Skybox", "Red Skybox", "Slam Skybox", "Green Eyeball Skybox", "LUK Skybox", "LUK Members Skybox"},
-    Default = "None",
+    Value = "None",
     Callback = function(Value)
         setSkybox(Value)
     end
 })
 
 -- ============ TELEPORTS TAB ============
-TeleportsTab:Divider()
 TeleportsTab:Label({ Title = "Teleports", Icon = "map-pin" })
 
 local teleports = {
