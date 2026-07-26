@@ -10,14 +10,8 @@ local Window = WindUI:CreateWindow({
     Icon = "sword",
     Author = "2knw",
     Folder = "PrecisionBreakout",
+    Theme = "Dark",  
 })
-
--- ============ TABS ============
-local MainTab = Window:Tab({ Title = "Main", Icon = "settings" })
-local AimbotTab = Window:Tab({ Title = "Aimbot", Icon = "crosshair" })
-local PlayersTab = Window:Tab({ Title = "Players", Icon = "user" })
-local VisualsTab = Window:Tab({ Title = "Visuals", Icon = "eye" })
-local TeleportsTab = Window:Tab({ Title = "Teleports", Icon = "map-pin" })
 
 -- ============ MAIN TAB ============
 MainTab:Label({ Title = "Player", Icon = "user" })
@@ -25,7 +19,6 @@ MainTab:Label({ Title = "Player", Icon = "user" })
 MainTab:Slider({
     Title = "Spinbot",
     Desc = "Spins your character at the chosen speed.",
-    Step = 1,  
     Value = {  
         Min = 0,
         Max = 250,
@@ -49,8 +42,8 @@ end
 local playerDropdown = PlayersTab:Dropdown({
     Title = "Teleport to Player",
     Desc = "Select a player to teleport to them",
-    Options = playerOptions,
-    Value = "Select a player...",
+    Values = playerOptions,  
+    Value = "Select a player...",  
     Callback = function(Value)
         if Value == "Select a player..." then return end
         local target = Players:FindFirstChild(Value)
