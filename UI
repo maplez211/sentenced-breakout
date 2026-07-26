@@ -13,6 +13,32 @@ local Window = WindUI:CreateWindow({
     Theme = "Dark",  
 })
 
+-- ============ CRIANDO TABS ============
+local MainTab = Window:Tab({
+    Title = "Main",
+    Icon = "home",
+})
+
+local PlayersTab = Window:Tab({
+    Title = "Players",
+    Icon = "users",
+})
+
+local AimbotTab = Window:Tab({
+    Title = "Aimbot",
+    Icon = "crosshair",
+})
+
+local VisualsTab = Window:Tab({
+    Title = "Visuals",
+    Icon = "eye",
+})
+
+local TeleportsTab = Window:Tab({
+    Title = "Teleports",
+    Icon = "map-pin",
+})
+
 -- ============ MAIN TAB ============
 MainTab:Label({ Title = "Player", Icon = "user" })
 
@@ -32,20 +58,24 @@ MainTab:Slider({
 -- ============ PLAYERS TAB ============
 PlayersTab:Label({ Title = "Teleport to Player", Icon = "user" })
 
-local playerOptions = {"Select a player..."}
-for _, plr in ipairs(Players:GetPlayers()) do
-    if plr ~= player then
-        table.insert(playerOptions, plr.Name)
+local function getPlayerOptions()
+    local options = {}
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player then
+            table.insert(options, plr.Name)
+        end
     end
+    return options
 end
 
 local playerDropdown = PlayersTab:Dropdown({
     Title = "Teleport to Player",
     Desc = "Select a player to teleport to them",
-    Values = playerOptions,  
-    Value = "Select a player...",  
+    Values = getPlayerOptions(),
+    Value = nil,
+    AllowNone = true,
     Callback = function(Value)
-        if Value == "Select a player..." then return end
+        if not Value then return end
         local target = Players:FindFirstChild(Value)
         if target and target.Character then
             local hrp = target.Character:FindFirstChild("HumanoidRootPart")
@@ -63,26 +93,13 @@ PlayersTab:Button({
     Title = "Update Players List",
     Icon = "refresh-cw",
     Callback = function()
-        local options = {"Select a player..."}
-        for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= player then
-                table.insert(options, plr.Name)
-            end
-        end
-        playerDropdown:SetOptions(options)
-        playerDropdown:SetValue("Select a player...")
+        playerDropdown:Refresh(getPlayerOptions())
+        playerDropdown:Select(nil)
     end
 })
 
 -- ============ VIEW PLAYER ============
 PlayersTab:Label({ Title = "View Player", Icon = "eye" })
-
-local viewPlayerOptions = {"Select a player..."}
-for _, plr in ipairs(Players:GetPlayers()) do
-    if plr ~= player then
-        table.insert(viewPlayerOptions, plr.Name)
-    end
-end
 
 local SPECTATE_PLAYER = nil
 local spectateConnection = nil
@@ -90,10 +107,10 @@ local spectateConnection = nil
 local viewPlayerDropdown = PlayersTab:Dropdown({
     Title = "View Player",
     Desc = "Select a player to spectate",
-    Options = viewPlayerOptions,
-    Value = "Select a player...",
+    Values = getPlayerOptions(),
+    Value = nil,
+    AllowNone = true,
     Callback = function(Value)
-        if Value == "Select a player..." then return end
         SPECTATE_PLAYER = Value
     end
 })
@@ -132,16 +149,10 @@ PlayersTab:Toggle({
 })
 
 PlayersTab:Button({
-    Title = "Update Players List",
+    Title = "Update View List",
     Callback = function()
-        local options = {"Select a player..."}
-        for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= player then
-                table.insert(options, plr.Name)
-            end
-        end
-        viewPlayerDropdown:SetOptions(options)
-        viewPlayerDropdown:SetValue("Select a player...")
+        viewPlayerDropdown:Refresh(getPlayerOptions())
+        viewPlayerDropdown:Select(nil)
     end
 })
 
@@ -197,17 +208,20 @@ AimbotTab:Toggle({
 -- ============ TARGET ON ============
 AimbotTab:Label({ Title = "Target On", Icon = "target" })
 
-local targetOptions = {"None"}
-for _, plr in ipairs(Players:GetPlayers()) do
-    if plr ~= player then
-        table.insert(targetOptions, plr.Name)
+local function getTargetOptions()
+    local options = {"None"}
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player then
+            table.insert(options, plr.Name)
+        end
     end
+    return options
 end
 
 local targetDropdown = AimbotTab:Dropdown({
     Title = "Target On",
     Desc = "Select a player to target",
-    Options = targetOptions,
+    Values = getTargetOptions(),
     Value = "None",
     Callback = function(Value)
         if Value == "None" then
@@ -222,14 +236,8 @@ AimbotTab:Button({
     Title = "Reset Target",
     Callback = function()
         TARGET_ON_PLAYER = nil
-        local newOptions = {"None"}
-        for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= player then
-                table.insert(newOptions, plr.Name)
-            end
-        end
-        targetDropdown:SetOptions(newOptions)
-        targetDropdown:SetValue("None")
+        targetDropdown:Refresh(getTargetOptions())
+        targetDropdown:Select("None")
     end
 })
 
@@ -237,7 +245,6 @@ AimbotTab:Button({
 AimbotTab:Slider({
     Title = "Smooth",
     Desc = "Adjust aiming smoothness",
-    Step = 1,
     Value = {
         Min = 1,
         Max = 100,
@@ -249,7 +256,6 @@ AimbotTab:Slider({
 AimbotTab:Slider({
     Title = "Angle Offset",
     Desc = "Adjust aim angle offset",
-    Step = 0.5,
     Value = {
         Min = 0,
         Max = 25,
@@ -264,7 +270,7 @@ AimbotTab:Label({ Title = "FOV", Icon = "circle" })
 AimbotTab:Dropdown({
     Title = "FOV Color",
     Desc = "Choose the FOV circle color",
-    Options = {"Black", "Red", "Green", "Blue", "Yellow", "Purple", "Cyan", "Orange", "Pink", "White", "Rainbow"},
+    Values = {"Black", "Red", "Green", "Blue", "Yellow", "Purple", "Cyan", "Orange", "Pink", "White", "Rainbow"},
     Value = "Black",
     Callback = function(Value)
         setFOVColor(Value)
@@ -285,7 +291,6 @@ AimbotTab:Toggle({
 AimbotTab:Slider({
     Title = "FOV Size",
     Desc = "Adjust FOV circle size",
-    Step = 10,
     Value = {
         Min = 30,
         Max = 500,
@@ -348,7 +353,7 @@ VisualsTab:Toggle({
 VisualsTab:Dropdown({
     Title = "Fog Color",
     Desc = "Choose the fog color",
-    Options = {"Default", "Black", "Red", "Green", "Blue", "Yellow", "Purple", "Cyan", "Orange", "Pink", "White"},
+    Values = {"Default", "Black", "Red", "Green", "Blue", "Yellow", "Purple", "Cyan", "Orange", "Pink", "White"},
     Value = "Default",
     Callback = function(Value)
         setFogColor(Value)
@@ -358,7 +363,7 @@ VisualsTab:Dropdown({
 VisualsTab:Dropdown({
     Title = "Skyboxes",
     Desc = "Choose your skybox",
-    Options = {"None", "Gray Skybox", "2knw & Donk666 Skybox", "Snow Skybox", "Cartoon Skybox", "Lince Skybox", "Red Skybox", "Slam Skybox", "Green Eyeball Skybox", "LUK Skybox", "LUK Members Skybox"},
+    Values = {"None", "Gray Skybox", "2knw & Donk666 Skybox", "Snow Skybox", "Cartoon Skybox", "Lince Skybox", "Red Skybox", "Slam Skybox", "Green Eyeball Skybox", "LUK Skybox", "LUK Members Skybox"},
     Value = "None",
     Callback = function(Value)
         setSkybox(Value)
