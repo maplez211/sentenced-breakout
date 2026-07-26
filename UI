@@ -1,16 +1,31 @@
--- UI Script Precision | Breakout (Sentenced) 
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+-- UI Script Precision | Breakout (Sentenced) - Nova WindUI
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
 local Window = WindUI:CreateWindow({
     Title = "Precision Hub | Breakout (Sentenced)",
-    SubTitle = "by 2knw | Version 0.0.1",
+    Author = "by 2knw",
     Icon = "sword",
-    Author = "2knw",
     Folder = "PrecisionBreakout",
-    Theme = "Dark",  
+    Theme = "Dark",
+    Size = UDim2.fromOffset(680, 500),
+    MinSize = Vector2.new(560, 350),
+    ToggleKey = Enum.KeyCode.RightShift,
+    Resizable = true,
+    NewElements = true,
+    HideSearchBar = false,
+    SideBarWidth = 210,
+    Topbar = {
+        Height = 44,
+        ButtonsType = "Mac",
+    },
+})
+
+Window:Tag({
+    Title = "v0.0.1",
+    Color = "ElementBackground",
 })
 
 -- ============ CRIANDO TABS ============
@@ -40,7 +55,10 @@ local TeleportsTab = Window:Tab({
 })
 
 -- ============ MAIN TAB ============
-MainTab:Label({ Title = "Player", Icon = "user" })
+MainTab:Section({
+    Title = "Player",
+    Icon = "user",
+})
 
 MainTab:Slider({
     Title = "Spinbot",
@@ -56,7 +74,10 @@ MainTab:Slider({
 })
 
 -- ============ PLAYERS TAB ============
-PlayersTab:Label({ Title = "Teleport to Player", Icon = "user" })
+PlayersTab:Section({
+    Title = "Teleport to Player",
+    Icon = "user",
+})
 
 local function getPlayerOptions()
     local options = {}
@@ -99,7 +120,10 @@ PlayersTab:Button({
 })
 
 -- ============ VIEW PLAYER ============
-PlayersTab:Label({ Title = "View Player", Icon = "eye" })
+PlayersTab:Section({
+    Title = "View Player",
+    Icon = "eye",
+})
 
 local SPECTATE_PLAYER = nil
 local spectateConnection = nil
@@ -157,7 +181,10 @@ PlayersTab:Button({
 })
 
 -- ============ AIMBOT TAB ============
-AimbotTab:Label({ Title = "Aimbot", Icon = "crosshair" })
+AimbotTab:Section({
+    Title = "Aimbot Settings",
+    Icon = "crosshair",
+})
 
 AimbotTab:Toggle({
     Title = "Aimbot",
@@ -206,7 +233,10 @@ AimbotTab:Toggle({
 })
 
 -- ============ TARGET ON ============
-AimbotTab:Label({ Title = "Target On", Icon = "target" })
+AimbotTab:Section({
+    Title = "Target On",
+    Icon = "target",
+})
 
 local function getTargetOptions()
     local options = {"None"}
@@ -242,6 +272,11 @@ AimbotTab:Button({
 })
 
 -- ============ SLIDERS ============
+AimbotTab:Section({
+    Title = "Aim Settings",
+    Icon = "settings",
+})
+
 AimbotTab:Slider({
     Title = "Smooth",
     Desc = "Adjust aiming smoothness",
@@ -265,7 +300,10 @@ AimbotTab:Slider({
 })
 
 -- ============ FOV ============
-AimbotTab:Label({ Title = "FOV", Icon = "circle" })
+AimbotTab:Section({
+    Title = "FOV Settings",
+    Icon = "circle",
+})
 
 AimbotTab:Dropdown({
     Title = "FOV Color",
@@ -303,7 +341,10 @@ AimbotTab:Slider({
 })
 
 -- ============ VISUALS TAB ============
-VisualsTab:Label({ Title = "Visual Options", Icon = "eye" })
+VisualsTab:Section({
+    Title = "Visual Options",
+    Icon = "eye",
+})
 
 VisualsTab:Toggle({
     Title = "ESP",
@@ -333,7 +374,10 @@ VisualsTab:Toggle({
     end
 })
 
-VisualsTab:Label({ Title = "Customization", Icon = "paintbrush" })
+VisualsTab:Section({
+    Title = "Customization",
+    Icon = "paintbrush",
+})
 
 VisualsTab:Toggle({
     Title = "Remove Fog",
@@ -371,7 +415,10 @@ VisualsTab:Dropdown({
 })
 
 -- ============ TELEPORTS TAB ============
-TeleportsTab:Label({ Title = "Teleports", Icon = "map-pin" })
+TeleportsTab:Section({
+    Title = "Teleports",
+    Icon = "map-pin",
+})
 
 local teleports = {
     {"Nexus", Vector3.new(116, 3, 245)},
