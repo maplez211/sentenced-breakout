@@ -10,19 +10,30 @@ local Window = WindUI:CreateWindow({
     Icon = "sword",
     Folder = "PrecisionBreakout",
     Theme = "Dark",
-    Size = UDim2.fromOffset(680, 500),
-    MinSize = Vector2.new(560, 350),
+    Size = UDim2.fromOffset(750, 580),  -- AUMENTADO
+    MinSize = Vector2.new(620, 420),     -- AUMENTADO
+    MaxSize = Vector2.new(950, 700),     -- AUMENTADO
     ToggleKey = Enum.KeyCode.RightShift,
     Resizable = true,
+    AutoScale = true,                    -- ADICIONADO - escala automática
     NewElements = true,
     HideSearchBar = false,
-    SideBarWidth = 210,
+    SideBarWidth = 220,                  -- AUMENTADO
     Topbar = {
-        Height = 44,
+        Height = 48,                     -- AUMENTADO
         ButtonsType = "Mac",
     },
 })
 
+-- TAG "Precision"
+Window:Tag({
+    Title = "Precision",
+    Icon = "sword",
+    Color = Color3.fromHex("#7775F2"),  -- Roxo igual o exemplo
+    Border = true,
+})
+
+-- TAG da versão
 Window:Tag({
     Title = "v0.0.1",
     Color = "ElementBackground",
