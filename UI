@@ -6,7 +6,7 @@ local RunService = game:GetService("RunService")
 
 local Window = redzlib:MakeWindow({
   Title = "Precision Hub | Breakout (Sentenced)",
-  SubTitle = "by 2knw | Version 0.0.1",
+  SubTitle = "by 2knw | Version 0.0.2",
   SaveFolder = "PrecisionBreakout"
 })
 
