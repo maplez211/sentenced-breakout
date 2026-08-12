@@ -6,7 +6,7 @@ local RunService = game:GetService("RunService")
 
 local Window = redzlib:MakeWindow({
   Title = "Precision Hub | Sentenced",
-  SubTitle = "by 2knw | Version 0.0.4",
+  SubTitle = "by 2knw | Version 0.0.5",
   SaveFolder = "PrecisionBreakout"
 })
 
@@ -190,12 +190,11 @@ end})
 local AimbotSection = AimbotTab:AddSection({"Aimbot"})
 
 AimbotTab:AddToggle({
-  Name = "Aimbot",
+  Name = "Silent Aim",
   Default = true,
   Callback = function(v)
     AIMBOT_ENABLED = v
     if _G.fovCircle then _G.fovCircle.Visible = v end
-    if not v then game:GetService("UserInputService").MouseBehavior = Enum.MouseBehavior.Default end
   end
 })
 
@@ -247,7 +246,7 @@ end
 
 local targetDropdown = AimbotTab:AddDropdown({
     Name = "Target On",
-    Description = "Select a player to target",
+    Description = "Select a specific player to target",
     Options = targetOptions,
     Default = "None",
     Callback = function(Value)
@@ -272,7 +271,7 @@ AimbotTab:AddButton({"Reset Target", function()
     
     targetDropdown = AimbotTab:AddDropdown({
         Name = "Target On",
-        Description = "Select a player to target",
+        Description = "Select a specific player to target",
         Options = newOptions,
         Default = "None",
         Callback = function(Value)
@@ -284,24 +283,6 @@ AimbotTab:AddButton({"Reset Target", function()
         end
     })
 end})
-
-AimbotTab:AddSlider({
-  Name = "Smooth",
-  Min = 1,
-  Max = 100,
-  Increase = 1,
-  Default = 80,
-  Callback = function(Value) SMOOTHNESS = Value / 100 end
-})
-
-AimbotTab:AddSlider({
-  Name = "Angle Offset",
-  Min = 0,
-  Max = 25,
-  Increase = 0.5,
-  Default = 10.5,
-  Callback = function(Value) AIM_ANGLE_OFFSET = Value end
-})
 
 local FOVSection = AimbotTab:AddSection({"FOV"})
 
