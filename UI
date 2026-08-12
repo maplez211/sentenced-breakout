@@ -6,7 +6,7 @@ local RunService = game:GetService("RunService")
 
 local Window = redzlib:MakeWindow({
   Title = "Precision Hub | Sentenced",
-  SubTitle = "by 2knw | Version 0.0.5",
+  SubTitle = "by 2knw | Version 0.0.6",
   SaveFolder = "PrecisionBreakout"
 })
 
@@ -186,14 +186,15 @@ PlayersTab:AddButton({"Update Players List", function()
     })
 end})
 
--- ============ AIMBOT TAB ============
-local AimbotSection = AimbotTab:AddSection({"Aimbot"})
+-- ============ AIM TAB ============
+local AimbotSection = AimbotTab:AddSection({"Aim"})
 
 AimbotTab:AddToggle({
   Name = "Silent Aim",
   Default = true,
   Callback = function(v)
     AIMBOT_ENABLED = v
+    getgenv().SilentAimSettings.Enabled = v  
     if _G.fovCircle then _G.fovCircle.Visible = v end
   end
 })
@@ -232,6 +233,17 @@ AimbotTab:AddToggle({
   Name = "Ignore Escaped",
   Default = false,
   Callback = function(v) IGNORE_ESCAPED = v end
+})
+
+AimbotTab:AddSlider({
+  Name = "Hit Chance",
+  Min = 0,
+  Max = 100,
+  Increase = 1,
+  Default = 100,
+  Callback = function(Value)
+    getgenv().SilentAimSettings.HitChance = Value
+  end
 })
 
 -- ============ TARGET ON SECTION ============
@@ -338,15 +350,6 @@ VisualsTab:AddToggle({
   Callback = function(v)
     ESP_NAMES_ENABLED = not v  
     if _G.refreshESP then _G.refreshESP() end
-  end
-})
-
-VisualsTab:AddToggle({
-  Name = "Hide Tag",
-  Default = false,
-  Callback = function(v)
-    HIDE_TAG_ENABLED = v
-    updateTagVisibility()
   end
 })
 
