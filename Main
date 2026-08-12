@@ -10,31 +10,26 @@ while not player do task.wait() player = Players.LocalPlayer end
 local playerGui = player:WaitForChild("PlayerGui")
 local camera = workspace.CurrentCamera
 
+-- ============ SETTINGS ============
 FOV_RADIUS = 100
-SMOOTHNESS = 0.80
 SPINBOT_SPEED = 0
-AIM_ANGLE_OFFSET = 10.5
 AIMBOT_ENABLED = true
 HIDE_TAG_ENABLED = false
 WANTED_ONLY = false
 IGNORE_FRIENDS = true
 ESP_ENABLED = false
-ESP_NAMES_ENABLED = true  
-local MOUSE_LOCKED = false
+ESP_NAMES_ENABLED = true
 HIDE_FOV_CIRCLE = false
 IGNORE_PRISONERS = false
 IGNORE_GUARDS = false
 IGNORE_ESCAPED = false
 IGNORE_FORCEFIELD = true
-local PC_TARGET = nil
+TARGET_ON_PLAYER = nil
+
 local target = nil
 local currentSkybox = nil
-TARGET_ON_PLAYER = nil
 local oldFireServer = nil
 local SmoothedTargetPosition = nil
-
-local isMobile = game:GetService("UserInputService").TouchEnabled
-if not isMobile then AIM_ANGLE_OFFSET = 0 end
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/maplez211/sentenced-breakout/refs/heads/main/UI"))()
 
@@ -66,147 +61,110 @@ end
 
 -- ============ MAIN FUNCTIONS ============
 local function isVisible(targetCharacter)
-	if not targetCharacter then return false end
-	local hrp = targetCharacter:FindFirstChild("HumanoidRootPart")
-	if not hrp then return false end
-	local origin = camera.CFrame.Position
-	local direction = hrp.Position - origin
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Blacklist
-	params.FilterDescendantsInstances = {player.Character, targetCharacter}
-	return Workspace:Raycast(origin, direction, params) == nil
+    if not targetCharacter then return false end
+    local hrp = targetCharacter:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    local origin = camera.CFrame.Position
+    local direction = hrp.Position - origin
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    params.FilterDescendantsInstances = {player.Character, targetCharacter}
+    return Workspace:Raycast(origin, direction, params) == nil
 end
 
--- ============ AIMBOT SYSTEM ============
-local function getClosestMobile()
+local function isValidTarget(plr)
+    if not plr or plr == player then return false end
+    if not plr.Character then return false end
+    
+    local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+    local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+    if not hum or hum.Health <= 0 or not hrp then return false end
+    
+    if IGNORE_FRIENDS and player:IsFriendsWith(plr.UserId) then return false end
+    
+    if player.Team and plr.Team == player.Team then return false end
+    
+    if plr.Team then
+        local tn = plr.Team.Name
+        if IGNORE_PRISONERS and tn == "Prisoners" then return false end
+        if IGNORE_GUARDS and tn == "Guards" then return false end
+        if IGNORE_ESCAPED and tn == "Escaped" then return false end
+    end
+    
+    if IGNORE_FORCEFIELD then
+        local ff = plr.Character:FindFirstChildOfClass("ForceField")
+        if ff and ff.Visible then return false end
+    end
+    
+    if WANTED_ONLY and plr.Team and plr.Team.Name == "Prisoners" then
+        local head = plr.Character:FindFirstChild("Head")
+        if head then
+            local bb = head:FindFirstChild("OverheadBBGUI")
+            local wanted = bb and bb:FindFirstChild("WantedTag")
+            if not wanted or not wanted.Visible then return false end
+        else
+            return false
+        end
+    end
+    
+    if not isVisible(plr.Character) then return false end
+    
+    return true
+end
+
+local function getBestTarget()
     if TARGET_ON_PLAYER then
         local targetPlr = Players:FindFirstChild(TARGET_ON_PLAYER)
-        if targetPlr and targetPlr.Character then
-            local humanoid = targetPlr.Character:FindFirstChildOfClass("Humanoid")
-            local hrp = targetPlr.Character:FindFirstChild("HumanoidRootPart")
-            if humanoid and humanoid.Health > 0 and hrp then
-                if IGNORE_FORCEFIELD then
-                    local ff = targetPlr.Character:FindFirstChildOfClass("ForceField")
-                    if ff and ff.Visible then return nil end
-                end
-                if WANTED_ONLY and targetPlr.Team and targetPlr.Team.Name == "Prisoners" then
-                    local head = targetPlr.Character:FindFirstChild("Head")
-                    if head then
-                        local bb = head:FindFirstChild("OverheadBBGUI")
-                        local wanted = bb and bb:FindFirstChild("WantedTag")
-                        if not wanted or not wanted.Visible then return nil end
-                    end
-                end
-                local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
-                if onScreen and isVisible(targetPlr.Character) then return targetPlr end
-            end
+        if targetPlr and isValidTarget(targetPlr) then
+            return targetPlr
         end
         return nil
     end
-
-    local closest = nil
-    local shortestDistance = math.huge
+    
     local screenCenter = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
-    local myTeam = player.Team
+    local mousePos = UserInputService:GetMouseLocation()
+    local useMouse = (UserInputService.TouchEnabled == false) -- false em mobile = true em PC
+    
+    local closest = nil
+    local shortestDistance = FOV_RADIUS
+    
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= player and plr.Character then
-            if IGNORE_FRIENDS and player:IsFriendsWith(plr.UserId) then continue end
-            if myTeam and plr.Team == myTeam then continue end
-            if plr.Team then
-                local tn = plr.Team.Name
-                if IGNORE_PRISONERS and tn == "Prisoners" then continue end
-                if IGNORE_GUARDS and tn == "Guards" then continue end
-                if IGNORE_ESCAPED and tn == "Escaped" then continue end
-            end
-            if IGNORE_FORCEFIELD then
-                local ff = plr.Character:FindFirstChildOfClass("ForceField")
-                if ff and ff.Visible then continue end
-            end
-            if WANTED_ONLY and plr.Team and plr.Team.Name == "Prisoners" then
-                local head = plr.Character:FindFirstChild("Head")
-                if head then
-                    local bb = head:FindFirstChild("OverheadBBGUI")
-                    local wanted = bb and bb:FindFirstChild("WantedTag")
-                    if not wanted or not wanted.Visible then continue end
-                end
-            end
-            
-            local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
+        if isValidTarget(plr) then
             local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
-            if humanoid and humanoid.Health > 0 and hrp then
+            if hrp then
                 local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
                 if onScreen then
-                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                    if dist < FOV_RADIUS and dist < shortestDistance then
-                        if isVisible(plr.Character) then
-                            closest = plr
-                            shortestDistance = dist
-                        end
+                    local dist
+                    if useMouse then
+                        dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(mousePos.X, mousePos.Y)).Magnitude
+                    else
+                        dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                    end
+                    
+                    if dist < shortestDistance then
+                        closest = plr
+                        shortestDistance = dist
                     end
                 end
             end
         end
     end
-    return closest
-end
-
-local function getClosestTargetPC()
-    local mousePos = UserInputService:GetMouseLocation()
-    local best = nil
-    local bestDist = FOV_RADIUS
     
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == player or not plr.Character then continue end
-        if IGNORE_FRIENDS and player:IsFriendsWith(plr.UserId) then continue end
-        if IGNORE_FORCEFIELD then
-            local ff = plr.Character:FindFirstChildOfClass("ForceField")
-            if ff and ff.Visible then continue end
-        end
-        if plr.Team then
-            local tn = plr.Team.Name
-            if IGNORE_PRISONERS and tn == "Prisoners" then continue end
-            if IGNORE_GUARDS and tn == "Guards" then continue end
-            if IGNORE_ESCAPED and tn == "Escaped" then continue end
-        end
-        if WANTED_ONLY and plr.Team and plr.Team.Name == "Prisoners" then
-            local head = plr.Character:FindFirstChild("Head")
-            if head then
-                local bb = head:FindFirstChild("OverheadBBGUI")
-                local wanted = bb and bb:FindFirstChild("WantedTag")
-                if not wanted or not wanted.Visible then continue end
-            end
-        end
-        
-        local aimPart = plr.Character:FindFirstChild("HumanoidRootPart") or plr.Character:FindFirstChild("Torso")
-        local hum = plr.Character:FindFirstChildOfClass("Humanoid")
-        if aimPart and hum and hum.Health > 0 then
-            local pos, onScreen = camera:WorldToViewportPoint(aimPart.Position)
-            if onScreen and isVisible(plr.Character) then
-                local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(mousePos.X, mousePos.Y)).Magnitude
-                if dist < bestDist then
-                    best = plr
-                    bestDist = dist
-                end
-            end
-        end
-    end
-    return best
+    return closest
 end
 
 local function updateFOVPosition()
     if not fovCircle then return end
-    if isMobile then
-        fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+    fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+    if UserInputService.TouchEnabled then
         fovCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
     else
-        fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
         local mousePos = UserInputService:GetMouseLocation()
         fovCircle.Position = UDim2.new(0, mousePos.X - FOV_RADIUS, 0, mousePos.Y - FOV_RADIUS - 36)
     end
 end
 
--- ============ SILENT AIM HOOK ============  
-
+-- ============ SILENT AIM HOOK ============
 local function getSpreadDirection(Origin, OriginalDirection, HitPart)
     local Distance = OriginalDirection.Magnitude
     if Distance == 0 then Distance = 1000 end
@@ -256,10 +214,10 @@ local function setupSilentAim()
                 local newDirection = getSpreadDirection(origin, rayDirection, targetHRP)
                 
                 aimPoint = origin + newDirection
-                
                 rayDirection = newDirection
             else
                 SmoothedTargetPosition = nil
+                target = nil
             end
         else
             SmoothedTargetPosition = nil
@@ -271,7 +229,8 @@ end
 
 player.CharacterAdded:Connect(function(char)
     task.wait(0.5)
-    SmoothedTargetPosition = nil  
+    SmoothedTargetPosition = nil
+    oldFireServer = nil 
     setupSilentAim()
     char.ChildAdded:Connect(function(child)
         if child:IsA("Tool") and child:FindFirstChild("RifleEvent") then
@@ -281,50 +240,49 @@ player.CharacterAdded:Connect(function(char)
     end)
 end)
 
--- ============ AIMBOT LOOP ============
+-- ============ MAIN LOOP ============
 RunService.RenderStepped:Connect(function()
     updateFOVPosition()
     
     if not AIMBOT_ENABLED then
-        if MOUSE_LOCKED then
-            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-            MOUSE_LOCKED = false
-        end
-        PC_TARGET = nil
         target = nil
+        SmoothedTargetPosition = nil
         return
     end
     
-    if isMobile then
-        target = getClosestMobile()
-        -- Não trava a câmera, só seleciona o alvo pro Silent Aim hook
-        return
-    end
-    
-    -- PC
-    if not PC_TARGET or not PC_TARGET.Character then
-        PC_TARGET = getClosestTargetPC()
-    end
-    
-    if PC_TARGET and PC_TARGET.Character then
-        local aimPart = PC_TARGET.Character:FindFirstChild("HumanoidRootPart") or PC_TARGET.Character:FindFirstChild("Torso")
-        local hum = PC_TARGET.Character:FindFirstChildOfClass("Humanoid")
-        
-        if aimPart and hum and hum.Health > 0 and isVisible(PC_TARGET.Character) then
-            local scr = camera:WorldToScreenPoint(aimPart.Position)
-            local mousePos = UserInputService:GetMouseLocation()
-            local smooth = SMOOTHNESS * 8
-            if smooth < 1 then smooth = 1 end
-            
-            local deltaX = math.round((scr.X - mousePos.X) / smooth)
-            local deltaY = math.round((scr.Y - 36 - mousePos.Y) / smooth)
-            
-            if type(mousemoverel) == "function" then
-                mousemoverel(deltaX, deltaY)
-            end
-        else
-            PC_TARGET = nil
+    target = getBestTarget()
+end)
+
+-- ============ SPINBOT ============
+RunService.RenderStepped:Connect(function()
+    if SPINBOT_SPEED and SPINBOT_SPEED > 0 then
+        local char = player.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(SPINBOT_SPEED), 0)
         end
+    end
+end)
+
+-- ============ KEYBINDS ============
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.E or input.KeyCode == Enum.KeyCode.LeftControl then
+        AIMBOT_ENABLED = not AIMBOT_ENABLED
+        if fovCircle then fovCircle.Visible = AIMBOT_ENABLED end
+        if not AIMBOT_ENABLED then
+            target = nil
+            SmoothedTargetPosition = nil
+        end
+    end
+end)
+
+player.CharacterAdded:Connect(function()
+    camera.CameraType = Enum.CameraType.Custom
+    
+    if ESP_ENABLED then
+        task.wait(0.5)
+        _G.updateESP()
     end
 end)
 
