@@ -30,6 +30,8 @@ local PC_TARGET = nil
 local target = nil
 local currentSkybox = nil
 TARGET_ON_PLAYER = nil
+local oldFireServer = nil
+local SmoothedTargetPosition = nil
 
 local isMobile = game:GetService("UserInputService").TouchEnabled
 if not isMobile then AIM_ANGLE_OFFSET = 0 end
@@ -203,8 +205,25 @@ local function updateFOVPosition()
     end
 end
 
--- ============ SILENT AIM HOOK ============
-local oldFireServer = nil
+-- ============ SILENT AIM HOOK ============  
+
+local function getSpreadDirection(Origin, OriginalDirection, HitPart)
+    local Distance = OriginalDirection.Magnitude
+    if Distance == 0 then Distance = 1000 end
+    
+    local PartSize = HitPart.Size
+    local RandomOffset = Vector3.new(
+        (math.random() - 0.5) * PartSize.X,
+        (math.random() - 0.5) * PartSize.Y,
+        (math.random() - 0.5) * PartSize.Z
+    )
+    
+    local BasePosition = SmoothedTargetPosition or HitPart.Position
+    local TargetPosition = BasePosition + RandomOffset
+    local NewDirection = (TargetPosition - Origin)
+    
+    return NewDirection.Unit * Distance
+end
 
 local function setupSilentAim()
     local char = player.Character
@@ -223,16 +242,36 @@ local function setupSilentAim()
     rifleEvent.FireServer = function(self, action, aimPoint, rayOrigin, rayDirection, muzzlePos, hitInstance, hitPosition)
         if action == "Shoot" and AIMBOT_ENABLED and target and target.Character then
             local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
-            if targetHRP and isVisible(target.Character) then
-                aimPoint = targetHRP.Position
+            local targetHum = target.Character:FindFirstChildOfClass("Humanoid")
+            
+            if targetHRP and targetHum and targetHum.Health > 0 and isVisible(target.Character) then
+                if not SmoothedTargetPosition then
+                    SmoothedTargetPosition = targetHRP.Position
+                else
+                    SmoothedTargetPosition = SmoothedTargetPosition:Lerp(targetHRP.Position, 0.3)
+                end
+                
+                local origin = rayOrigin or (char:FindFirstChild("Head") and char.Head.Position) or camera.CFrame.Position
+                
+                local newDirection = getSpreadDirection(origin, rayDirection, targetHRP)
+                
+                aimPoint = origin + newDirection
+                
+                rayDirection = newDirection
+            else
+                SmoothedTargetPosition = nil
             end
+        else
+            SmoothedTargetPosition = nil
         end
+        
         return oldFireServer(self, action, aimPoint, rayOrigin, rayDirection, muzzlePos, hitInstance, hitPosition)
     end
 end
 
 player.CharacterAdded:Connect(function(char)
     task.wait(0.5)
+    SmoothedTargetPosition = nil  
     setupSilentAim()
     char.ChildAdded:Connect(function(child)
         if child:IsA("Tool") and child:FindFirstChild("RifleEvent") then
