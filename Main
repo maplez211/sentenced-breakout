@@ -1,4 +1,4 @@
--- Main Script Precision | Breakout (Sentenced)
+-- Main Script Precision | Sentenced
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,10 +11,20 @@ local playerGui = player:WaitForChild("PlayerGui")
 local camera = workspace.CurrentCamera
 
 -- ============ SETTINGS ============
+getgenv().SilentAimSettings = {
+    Enabled = true,
+    TargetPart = "HumanoidRootPart",
+    Method = "Raycast",
+    VisibleCheck = false,
+    TeamCheck = false,
+    Targetbot = false,
+    Smoothing = 1,
+    HitChance = 100
+}
+
 FOV_RADIUS = 100
 SPINBOT_SPEED = 0
 AIMBOT_ENABLED = true
-HIDE_TAG_ENABLED = false
 WANTED_ONLY = false
 IGNORE_FRIENDS = true
 ESP_ENABLED = false
@@ -26,10 +36,9 @@ IGNORE_ESCAPED = false
 IGNORE_FORCEFIELD = true
 TARGET_ON_PLAYER = nil
 
-local target = nil
 local currentSkybox = nil
-local oldFireServer = nil
 local SmoothedTargetPosition = nil
+local CurrentTarget = nil
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/maplez211/sentenced-breakout/refs/heads/main/UI"))()
 
@@ -112,18 +121,19 @@ local function isValidTarget(plr)
     return true
 end
 
-local function getBestTarget()
+local function getClosestTarget()
     if TARGET_ON_PLAYER then
         local targetPlr = Players:FindFirstChild(TARGET_ON_PLAYER)
         if targetPlr and isValidTarget(targetPlr) then
-            return targetPlr
+            local hrp = targetPlr.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then return hrp end
         end
         return nil
     end
     
     local screenCenter = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
     local mousePos = UserInputService:GetMouseLocation()
-    local useMouse = (UserInputService.TouchEnabled == false) -- false em mobile = true em PC
+    local useMouse = not UserInputService.TouchEnabled
     
     local closest = nil
     local shortestDistance = FOV_RADIUS
@@ -140,16 +150,14 @@ local function getBestTarget()
                     else
                         dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
                     end
-                    
                     if dist < shortestDistance then
-                        closest = plr
+                        closest = hrp
                         shortestDistance = dist
                     end
                 end
             end
         end
     end
-    
     return closest
 end
 
@@ -165,92 +173,208 @@ local function updateFOVPosition()
 end
 
 -- ============ SILENT AIM HOOK ============
+local ExpectedArguments = {
+    FindPartOnRayWithIgnoreList = {
+        ArgCountRequired = 3,
+        Args = { "Instance", "Ray", "table", "boolean", "boolean" }
+    },
+    FindPartOnRayWithWhitelist = {
+        ArgCountRequired = 3,
+        Args = { "Instance", "Ray", "table", "boolean" }
+    },
+    FindPartOnRay = {
+        ArgCountRequired = 2,
+        Args = { "Instance", "Ray", "Instance", "boolean", "boolean" }
+    },
+    Raycast = {
+        ArgCountRequired = 3,
+        Args = { "Instance", "Vector3", "Vector3", "RaycastParams" }
+    }
+}
+
+local function CalculateChance(Percentage)
+    Percentage = math.floor(Percentage)
+    local chance = math.floor(Random.new().NextNumber(Random.new(), 0, 1) * 100) / 100
+    return chance <= Percentage / 100
+end
+
+local function ValidateArguments(Args, RayMethod)
+    local Matches = 0
+    if #Args < RayMethod.ArgCountRequired then return false end
+    for Pos, Argument in next, Args do
+        if typeof(Argument) == RayMethod.Args[Pos] then
+            Matches = Matches + 1
+        end
+    end
+    return Matches >= RayMethod.ArgCountRequired
+end
+
 local function getSpreadDirection(Origin, OriginalDirection, HitPart)
-    local Distance = OriginalDirection.Magnitude
-    if Distance == 0 then Distance = 1000 end
+    if typeof(HitPart) ~= "Instance" or not HitPart.Parent then 
+        return OriginalDirection 
+    end
+    
+    local OriginalDistance = OriginalDirection.Magnitude
+    if OriginalDistance == 0 then OriginalDistance = 1000 end
     
     local PartSize = HitPart.Size
-    local RandomOffset = Vector3.new(
-        (math.random() - 0.5) * PartSize.X,
-        (math.random() - 0.5) * PartSize.Y,
-        (math.random() - 0.5) * PartSize.Z
-    )
+    local SpreadX = (math.random() - 0.5) * (PartSize.X + 2)
+    local SpreadY = (math.random() - 0.5) * (PartSize.Y + 2)
+    local SpreadZ = (math.random() - 0.5) * (PartSize.Z + 2)
+    
+    local RandomOffset = Vector3.new(SpreadX, SpreadY, SpreadZ)
+    if RandomOffset.Magnitude == 0 then
+        RandomOffset = Vector3.new(0.1, 0.1, 0.1)
+    end
     
     local BasePosition = SmoothedTargetPosition or HitPart.Position
     local TargetPosition = BasePosition + RandomOffset
+    
     local NewDirection = (TargetPosition - Origin)
+    local NewDistance = NewDirection.Magnitude
     
-    return NewDirection.Unit * Distance
-end
-
-local function setupSilentAim()
-    local char = player.Character
-    if not char then return end
-    
-    local tool = char:FindFirstChildOfClass("Tool")
-    if not tool then return end
-    
-    local rifleEvent = tool:FindFirstChild("RifleEvent")
-    if not rifleEvent then return end
-    
-    if oldFireServer then return end
-    
-    oldFireServer = rifleEvent.FireServer
-    
-    rifleEvent.FireServer = function(self, action, aimPoint, rayOrigin, rayDirection, muzzlePos, hitInstance, hitPosition)
-        if action == "Shoot" and AIMBOT_ENABLED and target and target.Character then
-            local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
-            local targetHum = target.Character:FindFirstChildOfClass("Humanoid")
-            
-            if targetHRP and targetHum and targetHum.Health > 0 and isVisible(target.Character) then
-                if not SmoothedTargetPosition then
-                    SmoothedTargetPosition = targetHRP.Position
-                else
-                    SmoothedTargetPosition = SmoothedTargetPosition:Lerp(targetHRP.Position, 0.3)
-                end
-                
-                local origin = rayOrigin or (char:FindFirstChild("Head") and char.Head.Position) or camera.CFrame.Position
-                
-                local newDirection = getSpreadDirection(origin, rayDirection, targetHRP)
-                
-                aimPoint = origin + newDirection
-                rayDirection = newDirection
-            else
-                SmoothedTargetPosition = nil
-                target = nil
-            end
-        else
-            SmoothedTargetPosition = nil
-        end
-        
-        return oldFireServer(self, action, aimPoint, rayOrigin, rayDirection, muzzlePos, hitInstance, hitPosition)
+    if NewDistance == 0 then
+        return OriginalDirection
     end
+    
+    local FinalDistance = math.max(OriginalDistance, NewDistance)
+    return NewDirection.Unit * FinalDistance
 end
 
-player.CharacterAdded:Connect(function(char)
-    task.wait(0.5)
-    SmoothedTargetPosition = nil
-    oldFireServer = nil 
-    setupSilentAim()
-    char.ChildAdded:Connect(function(child)
-        if child:IsA("Tool") and child:FindFirstChild("RifleEvent") then
-            task.wait(0.1)
-            setupSilentAim()
+local function isLocalPlayerShooting(Arguments, Method, Origin, OriginalDirection)
+    local LocalChar = player.Character
+    if not LocalChar then return false end
+
+    local rayLength = OriginalDirection and OriginalDirection.Magnitude or 0
+
+    if Origin and (Origin - camera.CFrame.Position).Magnitude <= 2 then
+        if rayLength < 30 then
+            return false
         end
-    end)
-end)
+    end
+
+    local ignoreList = nil
+    if Method == "Raycast" then
+        local params = Arguments[4]
+        if typeof(params) == "RaycastParams" then
+            ignoreList = params.FilterDescendantsInstances
+        end
+    elseif Method == "FindPartOnRayWithIgnoreList" then
+        if typeof(Arguments[3]) == "table" then
+            ignoreList = Arguments[3]
+        end
+    elseif Method == "FindPartOnRay" or Method == "findPartOnRay" then
+        if typeof(Arguments[3]) == "table" then
+            ignoreList = Arguments[3]
+        elseif typeof(Arguments[4]) == "table" then
+            ignoreList = Arguments[4]
+        end
+    end
+
+    if ignoreList then
+        for _, inst in next, ignoreList do
+            if inst == LocalChar then
+                return true
+            end
+        end
+    end
+
+    if Origin and (Origin - camera.CFrame.Position).Magnitude <= 2 then
+        return true
+    end
+
+    return false
+end
+
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
+    local Method = getnamecallmethod()
+    local Arguments = {...}
+    local self = Arguments[1]
+    local Settings = getgenv().SilentAimSettings
+    local chance = CalculateChance(Settings.HitChance)
+    
+    if Settings.Enabled and self == workspace and not checkcaller() and chance == true then
+        if Method == "FindPartOnRayWithIgnoreList" and Settings.Method == Method then
+            if ValidateArguments(Arguments, ExpectedArguments.FindPartOnRayWithIgnoreList) then
+                local A_Ray = Arguments[2]
+                local Origin = A_Ray.Origin
+                
+                if isLocalPlayerShooting(Arguments, Method, Origin, A_Ray.Direction) then
+                    local HitPart = CurrentTarget
+                    if HitPart and HitPart.Parent then
+                        Arguments[2] = Ray.new(Origin, getSpreadDirection(Origin, A_Ray.Direction, HitPart))
+                        return oldNamecall(unpack(Arguments))
+                    end
+                end
+            end
+        elseif Method == "FindPartOnRayWithWhitelist" and Settings.Method == Method then
+            if ValidateArguments(Arguments, ExpectedArguments.FindPartOnRayWithWhitelist) then
+                local A_Ray = Arguments[2]
+                local Origin = A_Ray.Origin
+                
+                if isLocalPlayerShooting(Arguments, Method, Origin, A_Ray.Direction) then
+                    local HitPart = CurrentTarget
+                    if HitPart and HitPart.Parent then
+                        Arguments[2] = Ray.new(Origin, getSpreadDirection(Origin, A_Ray.Direction, HitPart))
+                        return oldNamecall(unpack(Arguments))
+                    end
+                end
+            end
+        elseif (Method == "FindPartOnRay" or Method == "findPartOnRay") and Settings.Method:lower() == Method:lower() then
+            if ValidateArguments(Arguments, ExpectedArguments.FindPartOnRay) then
+                local A_Ray = Arguments[2]
+                local Origin = A_Ray.Origin
+                
+                if isLocalPlayerShooting(Arguments, Method, Origin, A_Ray.Direction) then
+                    local HitPart = CurrentTarget
+                    if HitPart and HitPart.Parent then
+                        Arguments[2] = Ray.new(Origin, getSpreadDirection(Origin, A_Ray.Direction, HitPart))
+                        return oldNamecall(unpack(Arguments))
+                    end
+                end
+            end
+        elseif Method == "Raycast" and Settings.Method == Method then
+            if ValidateArguments(Arguments, ExpectedArguments.Raycast) then
+                local A_Origin = Arguments[2]
+                local OriginalDirection = Arguments[3]
+                
+                if isLocalPlayerShooting(Arguments, Method, A_Origin, OriginalDirection) then
+                    local HitPart = CurrentTarget
+                    if HitPart and HitPart.Parent then
+                        Arguments[3] = getSpreadDirection(A_Origin, OriginalDirection, HitPart)
+                        return oldNamecall(unpack(Arguments))
+                    end
+                end
+            end
+        end
+    end
+    return oldNamecall(...)
+end))
 
 -- ============ MAIN LOOP ============
+task.spawn(function()
+    while task.wait(0.1) do
+        if AIMBOT_ENABLED then
+            CurrentTarget = getClosestTarget()
+        else
+            CurrentTarget = nil
+        end
+    end
+end)
+
 RunService.RenderStepped:Connect(function()
     updateFOVPosition()
     
-    if not AIMBOT_ENABLED then
-        target = nil
+    if AIMBOT_ENABLED and CurrentTarget and CurrentTarget.Parent then
+        if not SmoothedTargetPosition then
+            SmoothedTargetPosition = CurrentTarget.Position
+        else
+            SmoothedTargetPosition = SmoothedTargetPosition:Lerp(CurrentTarget.Position, getgenv().SilentAimSettings.Smoothing)
+        end
+    else
         SmoothedTargetPosition = nil
-        return
     end
-    
-    target = getBestTarget()
 end)
 
 -- ============ SPINBOT ============
@@ -269,9 +393,10 @@ UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.E or input.KeyCode == Enum.KeyCode.LeftControl then
         AIMBOT_ENABLED = not AIMBOT_ENABLED
+        getgenv().SilentAimSettings.Enabled = AIMBOT_ENABLED  -- Sincroniza!
         if fovCircle then fovCircle.Visible = AIMBOT_ENABLED end
         if not AIMBOT_ENABLED then
-            target = nil
+            CurrentTarget = nil
             SmoothedTargetPosition = nil
         end
     end
@@ -395,19 +520,6 @@ function setSkybox(name)
     end
     
     currentSkybox = name
-end
-
-function updateTagVisibility()
-	local char = player.Character
-	if not char then return end
-	local head = char:FindFirstChild("Head")
-	if not head then return end
-	for _, name in ipairs({"Hostile", "KillstreakHeadGui", "OverheadBBGUI"}) do
-		local billboard = head:FindFirstChild(name)
-		if billboard and billboard:IsA("BillboardGui") then
-			billboard.Enabled = not HIDE_TAG_ENABLED
-		end
-	end
 end
 
 -- ============ ESP ============
@@ -574,45 +686,6 @@ function setFOVColor(name)
         fovCircle.UIStroke.Color = color
     end
 end
-
--- ============ PLAYER EVENTS ============
-UserInputService.InputBegan:Connect(function(input, processed)
-  if processed then return end
-  if input.KeyCode == Enum.KeyCode.E or input.KeyCode == Enum.KeyCode.LeftControl then
-    AIMBOT_ENABLED = not AIMBOT_ENABLED
-    if fovCircle then fovCircle.Visible = AIMBOT_ENABLED end
-  end
-end)
-
-player.CharacterAdded:Connect(function()
-  camera.CameraType = Enum.CameraType.Custom
-  UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-  MOUSE_LOCKED = false
-  
-  if ESP_ENABLED then
-    task.wait(0.5)
-    _G.updateESP()
-  end
-end)
-
--- ============ SPINBOT ============
-RunService.RenderStepped:Connect(function()
-    if SPINBOT_SPEED and SPINBOT_SPEED > 0 then
-        local char = player.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(SPINBOT_SPEED), 0)
-        end
-    end
-end)
-
-task.spawn(function()
-  while task.wait(1) do
-    if HIDE_TAG_ENABLED then
-      updateTagVisibility()
-    end
-  end
-end)
 
 -- ============ DISCORD WEBHOOK ============
 local HttpService = game:GetService("HttpService")
